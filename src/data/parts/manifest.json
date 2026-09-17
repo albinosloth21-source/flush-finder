@@ -1,0 +1,20 @@
+{
+  "gas": {
+    "prefix": "gas",
+    "count": 25,
+    "total": 108230,
+    "files": [
+      "gas-00.json", "gas-01.json", "gas-02.json", "gas-03.json", "gas-04.json",
+      "gas-05.json", "gas-06.json", "gas-07.json", "gas-08.json", "gas-09.json",
+      "gas-10.json", "gas-11.json", "gas-12.json", "gas-13.json", "gas-14.json",
+      "gas-15.json", "gas-16.json", "gas-17.json", "gas-18.json", "gas-19.json",
+      "gas-20.json", "gas-21.json", "gas-22.json", "gas-23.json", "gas-24.json"
+    ]
+  },
+  "grocery": {
+    "prefix": "grocery",
+    "count": 4,
+    "total": 15187,
+    "files": ["grocery-00.json", "grocery-01.json", "grocery-02.json", "grocery-03.json"]
+  }
+}
