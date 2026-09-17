@@ -28,7 +28,7 @@ import {
   deleteMyPin,
 } from "@/lib/bathrooms";
 import { getDeviceLocation } from "@/lib/native";
-import { composeMapPins, dropMinePin, keepMinePins, resolveOpenPin } from "@/lib/map-session";
+import { composeMapPins, dropMinePin, keepMinePins, resolveOpenPin, reviewSheetOpen } from "@/lib/map-session";
 import { loadPoiTiles } from "@/lib/poi-tiles";
 import { ADD_SPAM_COPY } from "@/lib/pin-policy";
 import { getReviewer } from "@/lib/reviewer";
@@ -104,6 +104,8 @@ export function FinderApp() {
     setSelected(null);
     setView("list");
     setPinBusy(false);
+    setDraft(null);
+    setPlacing(false);
   }, [pinsVisible]);
 
   const bathroomsQuery = useQuery({
@@ -202,12 +204,13 @@ export function FinderApp() {
   const addMutation = useMutation({
     mutationFn: addBathroom,
     onSuccess: (result) => {
-      mergeBathroom(queryClient, result.bathroom);
-      setMinePins((pins) => keepMinePins(pins, result.bathroom));
+      const room = { ...result.bathroom, mine: true };
+      mergeBathroom(queryClient, room);
+      setMinePins((pins) => keepMinePins(pins, room));
       void queryClient.invalidateQueries({ queryKey: ["wallet"] });
       setDraft(null);
       setPlacing(false);
-      setSelected(result.bathroom);
+      setSelected(room);
       setView("review");
       setExpanded(true);
       toast.success(
@@ -332,7 +335,7 @@ export function FinderApp() {
           ? "ready"
           : "confirm";
 
-  const sheetOpen = Boolean(selected) && (view === "detail" || view === "review" || view === "add");
+  const sheetOpen = reviewSheetOpen({ view, selectedId, draft });
   const sheetPlace = selected;
   const sheetTall = expanded && sheetOpen;
 
@@ -349,10 +352,13 @@ export function FinderApp() {
           draft={draft}
           flyTo={flyTo}
           onSelect={(id) => {
+            if (view === "add" && draft && !id) return;
             if (!id) {
+              setDraft(null);
               selectRoom(null);
               return;
             }
+            setDraft(null);
             const room = resolveOpenPin(id, bathrooms, selected);
             if (room) selectRoom(room);
           }}
@@ -363,6 +369,13 @@ export function FinderApp() {
             setSelected(null);
             setView("add");
             setExpanded(true);
+            setFlyTo({
+              seq: Date.now(),
+              lat: pos.lat,
+              lng: pos.lng,
+              zoom: Math.max(bounds?.zoom ?? 16, 15),
+              padBottom: true,
+            });
           }}
         />
       </Suspense>

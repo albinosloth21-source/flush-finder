@@ -31,6 +31,7 @@ import {
   keepMinePins,
   openPinAt,
   resolveOpenPin,
+  reviewSheetOpen,
 } from "./map-session.ts";
 import { mergeBathrooms, hideRemoved } from "./merge-bathrooms.ts";
 import { filterCatalog } from "./poi-catalog.ts";
@@ -832,6 +833,11 @@ describe("Map pins 100,000 appear/open/remove checks", () => {
       check(openedMine?.id === accident.id, "accidental pin opens");
       check(accidentalPinRemovable(openedMine), "owner can remove accidental pin");
       check(resolveOpenPin(accident.id, ownerView, accident)?.id === accident.id, "resolve open with fallback");
+      check(reviewSheetOpen({ view: "add", selectedId: null, draft: { lat: accident.lat, lng: accident.lng } }), "name sheet opens after drop");
+      check(!reviewSheetOpen({ view: "add", selectedId: null, draft: null }), "name sheet stays closed without a drop");
+      check(reviewSheetOpen({ view: "review", selectedId: accident.id, draft: null }), "review sheet opens after save");
+      check(reviewSheetOpen({ view: "detail", selectedId: accident.id }), "detail sheet opens for own pin");
+      check(!reviewSheetOpen({ view: "list", selectedId: accident.id }), "list does not raise review sheet");
       mine = dropMinePin(mine, accident.id);
       const after = composeMapPins({
         zoom: 16,
