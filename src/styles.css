@@ -1,0 +1,352 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Figtree", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces", "Iowan Old Style", "Palatino Linotype", serif;
+
+  --color-background: #efece6;
+  --color-surface: #f7f5f0;
+  --color-surface-2: #fffcf7;
+  --color-foreground: #1a1916;
+  --color-muted: #6f6a63;
+  --color-subtle: #8e877e;
+  --color-primary: #1e4f4a;
+  --color-primary-foreground: #f4f1ea;
+  --color-accent: #2a6b64;
+  --color-border: color-mix(in oklab, var(--color-foreground) 12%, transparent);
+  --color-ring: #1e4f4a;
+  --color-danger: #8f3d3a;
+  --color-warn: #8a5a32;
+  --color-good: #2d6a4f;
+
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 1.75rem;
+}
+
+:root {
+  --shadow-border:
+    0 0 0 1px color-mix(in oklab, var(--color-foreground) 8%, transparent),
+    0 1px 2px -1px color-mix(in oklab, var(--color-foreground) 8%, transparent),
+    0 10px 24px -12px color-mix(in oklab, var(--color-foreground) 16%, transparent);
+  --shadow-border-hover:
+    0 0 0 1px color-mix(in oklab, var(--color-foreground) 12%, transparent),
+    0 1px 2px -1px color-mix(in oklab, var(--color-foreground) 10%, transparent),
+    0 14px 28px -12px color-mix(in oklab, var(--color-foreground) 20%, transparent);
+
+  --motion-stagger: 40ms;
+  --motion-micro: 80ms;
+  --motion-quick: 150ms;
+  --motion-fast: 250ms;
+  --motion-medium: 350ms;
+  --motion-slow: 400ms;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-tap-highlight-color: transparent;
+    text-size-adjust: 100%;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  html,
+  body {
+    height: 100%;
+    height: 100dvh;
+    overflow: hidden;
+    overscroll-behavior: none;
+    background: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    touch-action: manipulation;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    text-wrap: balance;
+    letter-spacing: -0.03em;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+.ff-map {
+  background: #1a1916;
+}
+
+.ff-map .leaflet-container {
+  background: #1a1916;
+  font-family: var(--font-sans);
+}
+
+.ff-sat-labels {
+  filter: contrast(1.05);
+}
+
+.ff-pin-wrap {
+  background: none;
+  border: none;
+  will-change: transform;
+  contain: layout style;
+}
+
+.ff-pin {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 6px 8px rgb(26 25 22 / 28%));
+  transform-origin: 50% 100%;
+  transition: transform 120ms ease-out;
+}
+
+.ff-pin svg {
+  overflow: visible;
+}
+
+.ff-pin path:first-child {
+  fill: var(--color-primary);
+}
+
+.ff-pin.is-restaurant path:first-child { fill: #8a3d32; }
+.ff-pin.is-gas path:first-child { fill: #8a5a32; }
+.ff-pin.is-grocery path:first-child { fill: #2d6a4f; }
+.ff-pin.is-park path:first-child { fill: #3d6b46; }
+.ff-pin.is-business path:first-child { fill: #3d4f6b; }
+.ff-pin.is-personal path:first-child {
+  fill: color-mix(in oklab, var(--color-warn) 70%, var(--color-foreground));
+}
+
+.ff-pin.is-pending path:first-child {
+  fill: var(--color-accent);
+}
+
+.ff-pin .bowl {
+  fill: var(--color-surface-2);
+}
+
+.ff-pin.is-on {
+  transform: scale(1.06);
+  transform-origin: 50% 100%;
+}
+
+.ff-pin.is-busy {
+  animation: ff-pin-pulse 900ms ease-in-out infinite;
+}
+
+.ff-pin.is-rated path:first-child {
+  stroke: color-mix(in oklab, var(--color-surface-2) 70%, transparent);
+  stroke-width: 1.2;
+}
+
+@keyframes ff-pin-pulse {
+  0%,
+  100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+.ff-pin-hit {
+  position: absolute;
+  z-index: 30;
+  width: 44px;
+  height: 52px;
+  margin-left: -22px;
+  margin-top: -50px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  pointer-events: auto;
+}
+
+.ff-pin-hit.is-on {
+  width: 52px;
+  height: 60px;
+  margin-left: -26px;
+  margin-top: -58px;
+}
+
+.ff-sheet {
+  box-shadow: var(--shadow-border);
+}
+
+.ff-review-sheet {
+  bottom: var(--kb, 0px);
+  height: min(58dvh, 34rem);
+  z-index: 250;
+  transform: translateY(110%);
+  transition:
+    transform 380ms var(--ease-smooth-out),
+    height 380ms var(--ease-smooth-out),
+    visibility 0s linear 380ms;
+  pointer-events: none;
+  visibility: hidden;
+  background: var(--color-surface);
+  isolation: isolate;
+  box-shadow:
+    0 -12px 40px -8px rgb(0 0 0 / 28%),
+    var(--shadow-border);
+}
+
+.ff-review-sheet.is-open {
+  transform: translateY(0);
+  pointer-events: auto;
+  visibility: visible;
+  transition:
+    transform 380ms var(--ease-smooth-out),
+    height 380ms var(--ease-smooth-out),
+    visibility 0s linear 0s;
+}
+
+.ff-review-sheet.is-open.is-tall {
+  top: 0;
+  bottom: var(--kb, 0px);
+  height: 100dvh;
+  max-height: none;
+  border-radius: 0;
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+}
+
+.leaflet-control {
+  z-index: 400 !important;
+}
+
+.leaflet-control-zoom a {
+  width: 2.25rem !important;
+  height: 2.25rem !important;
+  line-height: 2.25rem !important;
+  color: var(--color-foreground) !important;
+  background: var(--color-surface) !important;
+}
+
+.leaflet-control-attribution {
+  background: color-mix(in oklab, var(--color-surface) 86%, transparent) !important;
+  color: var(--color-subtle);
+  font-size: 0.625rem;
+}
+
+@media (min-width: 900px) {
+  .leaflet-top {
+    top: 6.25rem;
+  }
+
+  .leaflet-right {
+    right: 27.5rem;
+  }
+
+  .leaflet-bottom.leaflet-right {
+    right: 27.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ff-pin.is-busy,
+  .ff-review-sheet,
+  .ff-review-sheet.is-open {
+    animation: none;
+    transition: none;
+  }
+}
+
+.ff-title-badge {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.ff-title-badge.is-wrap {
+  white-space: normal;
+  text-align: left;
+}
+
+.ff-title-badge.is-sm {
+  font-size: 0.625rem;
+  padding: 0.12rem 0.4rem;
+}
+
+.ff-title-badge.is-lg {
+  font-size: 0.9375rem;
+  padding: 0.35rem 0.8rem;
+}
+
+.ff-title-badge.cut-chip { border-radius: 999px; }
+.ff-title-badge.cut-plaque { border-radius: 0.35rem; }
+.ff-title-badge.cut-ribbon { border-radius: 0.15rem 0.85rem; }
+.ff-title-badge.cut-stamp { border-radius: 0.2rem; border-style: dashed; border-width: 1.5px; }
+.ff-title-badge.cut-seal { border-radius: 999px; letter-spacing: 0.04em; }
+.ff-title-badge.cut-ticket {
+  border-radius: 0.15rem;
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent,
+    transparent 6px,
+    color-mix(in oklab, currentColor 18%, transparent) 6px,
+    color-mix(in oklab, currentColor 18%, transparent) 7px
+  );
+  background-size: auto 3px;
+  background-repeat: repeat-x;
+  background-position: 0 100%;
+}
+.ff-title-badge.cut-tape { border-radius: 0.1rem; box-shadow: 2px 2px 0 color-mix(in oklab, currentColor 18%, transparent); }
+.ff-title-badge.cut-banner { border-radius: 0.2rem 0.7rem 0.2rem 0.7rem; }
+
+.ff-title-badge.is-porcelain {
+  background: var(--color-surface-2);
+  color: var(--color-foreground);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-foreground) 14%, transparent);
+}
+.ff-title-badge.is-forest {
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+}
+.ff-title-badge.is-brass {
+  background: color-mix(in oklab, var(--color-warn) 55%, var(--color-foreground));
+  color: var(--color-surface-2);
+}
+.ff-title-badge.is-ink {
+  background: var(--color-foreground);
+  color: var(--color-surface);
+}
+.ff-title-badge.is-coral {
+  background: color-mix(in oklab, var(--color-danger) 82%, var(--color-foreground));
+  color: var(--color-surface-2);
+}
+.ff-title-badge.is-moss {
+  background: var(--color-good);
+  color: var(--color-surface-2);
+}
+.ff-title-badge.is-slate {
+  background: color-mix(in oklab, var(--color-foreground) 72%, var(--color-muted));
+  color: var(--color-surface);
+}
+.ff-title-badge.is-wine {
+  background: color-mix(in oklab, var(--color-danger) 55%, var(--color-foreground));
+  color: var(--color-surface-2);
+}
+.ff-title-badge.is-sand {
+  background: color-mix(in oklab, var(--color-warn) 28%, var(--color-surface));
+  color: var(--color-foreground);
+}
+.ff-title-badge.is-tide {
+  background: var(--color-accent);
+  color: var(--color-primary-foreground);
+}

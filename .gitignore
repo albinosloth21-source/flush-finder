@@ -3,6 +3,7 @@ dist/
 .output/
 .vinxi/
 .turbo/
+.vercel/
 .DS_Store
 *.log
 .env
@@ -22,3 +23,8 @@ public/catalog/c/
 artifacts/
 tmp/
 flush-finder.zip
+.node_modules.lock
+.project_id
+src/data/us-gas-stations.json
+src/data/us-grocery-stores.json
+src/data/parts/
