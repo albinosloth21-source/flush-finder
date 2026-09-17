@@ -1,0 +1,41 @@
+{
+  "url": "http://127.0.0.1:8081/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Flush Finder",
+      "hasCanvas": false,
+      "bodyTextLen": 1053,
+      "bodyTextHash": "f33078c7b83442df09e2d79bdd7a854eb079735a8038f41c5fcb69d3bd043615",
+      "bodyTextPrefix": "Flush Finder Local restrooms, rated in toilets. HOW IT WORKS Rat",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-built.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Flush Finder",
+      "hasCanvas": false,
+      "bodyTextLen": 772,
+      "bodyTextHash": "5e41712e53367b6fcfe2cbe44193638877b9b4e616425ec9f964871d98599770",
+      "bodyTextPrefix": "NEARBY 9 restrooms All Public Customers Rated Westfield Centre 4",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-built-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/app-builder-built.json",
+  "divergesFromBaseline": true,
+  "baselineReasons": [
+    "desktop: body text replaced (similar length, page start changed)",
+    "mobile: body text changed (387 -> 772 chars, hash mismatch)"
+  ]
+}

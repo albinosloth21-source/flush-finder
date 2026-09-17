@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Flush Finder",
+      "hasCanvas": false,
+      "bodyTextLen": 439,
+      "bodyTextHash": "d712d322ae7720f05cc47e8072638cc875a2d9c0900a0e070ffefc2073807ab8",
+      "bodyTextPrefix": "Sign in + − Leaflet | Tiles © Esri — Source: Esri, Maxar, Earths",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Flush Finder",
+      "hasCanvas": false,
+      "bodyTextLen": 1600,
+      "bodyTextHash": "9131069a5fc4f94e614326e9edc6186244876c6971b4e2f7f410977545789715",
+      "bodyTextPrefix": "+ − Leaflet | Tiles © Esri — Source: Esri, Maxar, Earthstar Geog",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/app-builder-preview.json"
+}

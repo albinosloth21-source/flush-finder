@@ -19,7 +19,6 @@ ios/App/Pods/
 ios/App/build/
 *.keystore
 *.jks
-public/catalog/c/
 artifacts/
 tmp/
 flush-finder.zip

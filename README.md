@@ -21,7 +21,7 @@ Zoom in (level 13+) to see pins.
 
 ## Nationwide gas stations and grocery stores
 
-The full US catalogs live in `src/data/parts/` (split so GitHub can host them):
+The full US catalogs live in [`src/data/parts/`](src/data/parts/) (split so GitHub can host them):
 
 - 108,230 gas stations
 - 15,187 grocery stores
