@@ -40,7 +40,7 @@ Phone screenshots: take 2–8 from a real device or emulator
 Google Play Data safety form:
 - Collected: Location (approximate, required for nearby map), Personal info (name, email if they create an account), User-generated content (reviews, added restrooms)
 - Shared / sold: Personal info and activity MAY be sold or used for advertising. User can opt out in Account → Privacy.
-- Security: Data encrypted in transit (HTTPS). Account optional. Users can request deletion by emailing support.
+- Security: Data encrypted in transit (HTTPS). Account optional. Users can request deletion by emailing MisfitSoftwareSupport@gmail.com.
 - Children: App is not directed at children under 16.
 - Location: Approximate. Used for app functionality. Not collected in background. Not used for advertising by the app itself unless the user leaves sale/ads on.
 - Advertising ID: Not used. Declare “No” for Advertising ID.

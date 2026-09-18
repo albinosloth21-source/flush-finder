@@ -141,6 +141,12 @@ export function PrivacyPolicyText() {
           </li>
           <li>Delete account: Account → Titles → Delete account</li>
         </ul>
+        <p className="mt-3 text-muted">
+          Support email for {OPERATOR_NAME} and {APP_NAME}:{" "}
+          <a className="text-foreground underline-offset-4 hover:underline" href={`mailto:${SUPPORT_EMAIL}`}>
+            {SUPPORT_EMAIL}
+          </a>
+        </p>
       </section>
     </div>
   );
