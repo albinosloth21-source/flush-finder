@@ -1,6 +1,6 @@
 import { APP_NAME, OPERATOR_NAME, SUPPORT_EMAIL } from "@/lib/constants";
 
-export const PRIVACY_UPDATED = "September 16, 2026";
+export const PRIVACY_UPDATED = "September 17, 2026";
 export const SUPPORT_WEBSITE = "https://albinosloth21-source.github.io/flush-finder/";
 
 export function PrivacyPolicyText() {
@@ -9,10 +9,17 @@ export function PrivacyPolicyText() {
       <p className="text-[0.6875rem] font-medium tracking-[0.16em] text-muted uppercase">Privacy policy</p>
       <p className="text-muted">Last Updated: {PRIVACY_UPDATED}</p>
 
-      <p>
-        {OPERATOR_NAME} (“we,” “our,” or “us”) operates the {APP_NAME} mobile application (the
-        “App”). We respect your privacy and are committed to protecting your personal data.
-      </p>
+      <section>
+        <h2 className="font-display text-lg font-semibold">Who we are</h2>
+        <p className="mt-2 text-muted">
+          The company name is <span className="text-foreground">{OPERATOR_NAME}</span>. The app is
+          still named <span className="text-foreground">{APP_NAME}</span>. {OPERATOR_NAME} (“we,”
+          “our,” or “us”) is a small team of people who operate and manage the {APP_NAME} mobile
+          application (the “App”). We respect your privacy and are committed to protecting your
+          personal data.
+        </p>
+      </section>
+
       <p>
         This Privacy Policy describes how we collect, use, disclose, and sell your information, as
         well as your choices regarding your data under applicable data privacy laws, including the
@@ -99,7 +106,8 @@ export function PrivacyPolicyText() {
           We implement appropriate technical and organizational safeguards designed to protect your
           data from unauthorized access or disclosure. We retain your personal information only for
           as long as necessary to fulfill the business purposes outlined in this policy or to
-          fulfill legal requirements.
+          fulfill legal requirements. Because {OPERATOR_NAME} is a small team, access to personal
+          data is limited to the people who operate {APP_NAME}.
         </p>
       </section>
 
@@ -116,7 +124,7 @@ export function PrivacyPolicyText() {
         <h2 className="font-display text-lg font-semibold">8. Contact information</h2>
         <p className="mt-2 text-muted">
           If you have questions regarding this Privacy Policy or wish to exercise your data deletion
-          rights, please contact us at:
+          rights, please contact {OPERATOR_NAME} at:
         </p>
         <ul className="mt-2 list-disc space-y-1.5 pl-5 text-muted">
           <li>
