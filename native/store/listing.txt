@@ -1,9 +1,74 @@
 Flush Finder — Google Play listing
 
 App name: Flush Finder
+Short name: Flush Finder
 Application ID: com.flushfinder.app
-Age: 16+
+Default language: English (US)
+Category: Travel
+Tags: restroom, bathroom, map, travel, navigation
 Contact email: support@flushfinder.app
+Privacy policy: https://albinosloth21-source.github.io/flush-finder/
+App website: https://albinosloth21-source.github.io/flush-finder/
 
-Short description:
+Age: 16+  (user-generated reviews; not directed at children under 16)
+
+Short description (80 characters max):
 Find nearby restrooms. Rate stalls in toilets. Guest browse, verified reviews.
+
+Full description:
+Flush Finder helps you find a restroom before you stall.
+
+Open a satellite map, zoom in, and tap pins at gas stations, grocery stores, restaurants, parks, and public stalls. Each pin shows an overall 1-to-5 toilet rating, optional notes like Customers only or Ask for key, and written reviews from verified accounts.
+
+Guests can browse the map and read reviews. Creating an account and confirming email is required to rate, write a critique, or add a new restroom. New user pins stay personal until enough other accounts add the same public restroom nearby.
+
+Earn points for verified reviews and spend them on bathroom-pun titles in your account.
+
+Location is used on your device to show nearby stalls and walking directions. We may sell or share personal information and use it for personalized ads. Turn that off anytime in Account → Privacy.
+
+Store assets in native/store/play/:
+- hi-res-icon.jpg (upload as Play high-res icon; crop to 512×512 PNG in Play Console)
+- feature-graphic.jpg (upload as feature graphic; crop to 1024×500)
+- logo-source.jpg (source art)
+
+Phone screenshots: take 2–8 from a real device or emulator
+1) Map with toilet pins
+2) Review sheet with 1–5 toilets lit
+3) Title shop with Flush Newbie
+4) Privacy toggle
+
+Google Play Data safety form:
+- Collected: Location (approximate, required for nearby map), Personal info (name, email if they create an account), User-generated content (reviews, added restrooms)
+- Shared / sold: Personal info and activity MAY be sold or used for advertising. User can opt out in Account → Privacy.
+- Security: Data encrypted in transit (HTTPS). Account optional. Users can request deletion by emailing support.
+- Children: App is not directed at children under 16.
+- Location: Approximate. Used for app functionality. Not collected in background. Not used for advertising by the app itself unless the user leaves sale/ads on.
+- Advertising ID: Not used. Declare “No” for Advertising ID.
+
+Content rating questionnaire:
+- User-generated content: Yes (reviews; moderated for profanity and hate speech)
+- Violence, sexual content, drugs: No
+- Location sharing: Yes, user-initiated nearby search
+
+Android permissions users see:
+- Location (precise / approximate) — nearby restrooms and walking directions only
+- Internet — load the map, reviews, and account
+
+How the Android app is built (Capacitor):
+The phone app is a native Android shell (com.flushfinder.app) that opens Flush Finder in a secure HTTPS WebView, with native location, splash, and status bar.
+
+You still need:
+1. A published web app URL (Update / republish Flush Finder first)
+2. A Google Play Developer account
+3. Android Studio on your computer
+4. A signing key you keep private
+
+On your computer, after the web app is live:
+
+  export CAPACITOR_SERVER_URL="https://YOUR-PUBLISHED-APP"
+  npx cap sync android
+  Open android/ in Android Studio
+  Build → Generate Signed Bundle / APK → Android App Bundle
+  Upload the .aab to Play Console (production track)
+
+Do not share your keystore. versionCode is 1, versionName is 1.0 for the first listing.

@@ -1,7 +1,7 @@
 import { APP_NAME, OPERATOR_NAME, SUPPORT_EMAIL } from "@/lib/constants";
 
 export const PRIVACY_UPDATED = "September 16, 2026";
-export const SUPPORT_WEBSITE = "https://flushfinder.app/privacy";
+export const SUPPORT_WEBSITE = "https://albinosloth21-source.github.io/flush-finder/";
 
 export function PrivacyPolicyText() {
   return (
