@@ -35,3 +35,12 @@ node scripts/build-poi-tiles.mjs
 ## Play Store
 
 See `native/store/listing.txt`. Open `android/` in Android Studio after setting `CAPACITOR_SERVER_URL` to the live site and running `npx cap sync android`.
+
+### "Made with Grok" banner (do not delete the app)
+
+That pill is **not** Flush Finder. It is loaded from:
+
+- [`scripts/grok-pwa-shared.mjs`](scripts/grok-pwa-shared.mjs) — search for `MADE WITH GROK BANNER` and `extensions.js`
+- [`vite.config.ts`](vite.config.ts) — `grokPwaPlugin()`
+
+Before a Play Store build, stop loading `extensions.js`. Do **not** delete `src/`, `android/`, `docs/`, or this whole `grok-pwa-shared.mjs` file.

@@ -200,6 +200,13 @@ export function grokPwaHeadTags(appName = DEFAULT_APP_NAME) {
   ];
 }
 
+// ---------------------------------------------------------------------------
+// MADE WITH GROK BANNER (Play Store note)
+// This is the sticker at the top of the Grok preview. It is NOT Flush Finder.
+// Do not delete this whole file.
+// Before Play Store: stop loading the URL below (extensions.js) so the pill
+// does not appear in the Misfit Software Android app. Keep everything else.
+// ---------------------------------------------------------------------------
 export const GROK_EXTENSIONS_SCRIPT_SRC = "https://grok.com/grok-app-builder/extensions.js";
 
 export function readGrokProjectId() {
@@ -227,7 +234,10 @@ export function grokXCreatorHeadTags(creator = readXCreator(), creatorId = readX
   ];
 }
 
-/** Platform "Created with Grok" banner — injected into every HTML document. */
+/** Platform "Created with Grok" banner — injected into every HTML document.
+ *  LOOK HERE for the Made with Grok / Remix pill.
+ *  Play Store: skip calling this (or skip injecting GROK_EXTENSIONS_SCRIPT_SRC).
+ */
 export function grokExtensionsHeadTags(projectId = readGrokProjectId()) {
   const id = escapeHtml(projectId);
   const tags = [];

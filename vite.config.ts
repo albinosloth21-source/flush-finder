@@ -163,7 +163,8 @@ export default defineConfig(({ command, isPreview }) => ({
     authPopupPlugin(),
     // Dev-only /__app-env, read by scripts/check-auth-invariant.mjs.
     appEnvPlugin(),
-    // PWA head + ?install=1 tutorial page; runs before Start/Nitro.
+    // PWA head + ?install=1 tutorial. grokPwaPlugin() also injects the
+    // "Made with Grok" pill (see GROK_EXTENSIONS_SCRIPT_SRC in grok-pwa-shared.mjs).
     grokPwaPlugin(),
     tailwindcss(),
     tanstackStart(),
