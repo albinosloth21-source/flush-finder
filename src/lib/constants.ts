@@ -1,6 +1,6 @@
 export const APP_NAME = "Flush Finder";
 export const APP_TAGLINE = "Local restrooms, rated in toilets.";
-export const SUPPORT_EMAIL = "support@flushfinder.app";
+export const SUPPORT_EMAIL = "MisfitSoftwareSupport@gmail.com";
 export const OPERATOR_NAME = "Misfit Software";
 
 export const DEFAULT_CENTER = { lat: 32.33102, lng: -96.122 };

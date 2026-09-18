@@ -6,7 +6,7 @@ Application ID: com.flushfinder.app
 Default language: English (US)
 Category: Travel
 Tags: restroom, bathroom, map, travel, navigation
-Contact email: support@flushfinder.app
+Contact email: MisfitSoftwareSupport@gmail.com
 Privacy policy: https://albinosloth21-source.github.io/flush-finder/
 App website: https://albinosloth21-source.github.io/flush-finder/
 
