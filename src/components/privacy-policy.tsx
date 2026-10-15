@@ -1,4 +1,5 @@
-import { APP_NAME, OPERATOR_NAME, SUPPORT_EMAIL } from "@/lib/constants";
+import { APP_NAME, MIN_AGE, OPERATOR_NAME, SUPPORT_EMAIL } from "@/lib/constants";
+import { PRIVACY_SWITCH_LABEL } from "@/lib/privacy-choices";
 
 export const PRIVACY_UPDATED = "September 17, 2026";
 export const SUPPORT_WEBSITE = "https://albinosloth21-source.github.io/flush-finder/";
@@ -29,10 +30,10 @@ export function PrivacyPolicyText() {
       <section>
         <h2 className="font-display text-lg font-semibold">1. Age restriction and eligibility</h2>
         <p className="mt-2 text-muted">
-          The App is strictly intended for use by individuals who are sixteen (16) years of age or
+          The App is strictly intended for use by individuals who are {MIN_AGE} years of age or
           older. We do not knowingly collect, solicit, or sell personal information from individuals
-          under the age of 16. If we learn that we have inadvertently collected personal data from a
-          user under 16, we will delete that information immediately.
+          under the age of {MIN_AGE}. If we learn that we have inadvertently collected personal data from a
+          user under {MIN_AGE}, we will delete that information immediately.
         </p>
       </section>
 
@@ -74,8 +75,8 @@ export function PrivacyPolicyText() {
             advertising partners to provide targeted in-app promotions.
           </li>
           <li>
-            This is off by default. We only sell or share this data if you turn on “Sell my data &
-            personalized ads” in Account → Privacy.
+            This is off by default. We only sell or share this data if you turn on “{PRIVACY_SWITCH_LABEL}”
+            in Account → Privacy.
           </li>
         </ul>
       </section>
@@ -89,8 +90,9 @@ export function PrivacyPolicyText() {
         <ul className="mt-2 list-disc space-y-1.5 pl-5 text-muted">
           <li>
             <span className="text-foreground">How to exercise your opt-out right:</span> Open
-            Account, tap Privacy, and turn off “Sell my data & personalized ads” (Do Not Sell My
-            Personal Information). You can use the same switch at the top of this policy.
+            Account, tap Privacy, and make sure “{PRIVACY_SWITCH_LABEL}” (Do Not Sell My Personal
+            Information) is off. It starts off; if you turned it on, turn it off again. You can use the
+            same switch at the top of this policy.
           </li>
           <li>
             <span className="text-foreground">Effect of opting out:</span> Once the toggle is turned

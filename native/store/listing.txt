@@ -10,7 +10,7 @@ Contact email: MisfitSoftwareSupport@gmail.com
 Privacy policy: https://albinosloth21-source.github.io/flush-finder/
 App website: https://albinosloth21-source.github.io/flush-finder/
 
-Age: 16+  (user-generated reviews; not directed at children under 16)
+Age: 16+  (user-generated reviews; not directed at children under 16)  [keep in sync with MIN_AGE in src/lib/constants.ts]
 
 Short description (80 characters max):
 Find nearby restrooms. Rate stalls in toilets. Guest browse, verified reviews.

@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { setPrivacyChoices } from "@/lib/privacy-choices-fn";
 import {
   DEFAULT_PRIVACY_CHOICES,
+  PRIVACY_SWITCH_LABEL,
   readLocalPrivacyChoices,
   writeLocalPrivacyChoices,
   type PrivacyChoices,
@@ -39,7 +40,7 @@ export function PrivacyChoicesControl({
     <div className={cn("mt-4 rounded-[var(--radius-lg)] bg-foreground/4 p-3", className)}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-medium">Sell my data & personalized ads</p>
+          <p className="text-sm font-medium">{PRIVACY_SWITCH_LABEL}</p>
           <p className="mt-1 text-[0.75rem] leading-relaxed text-muted">
             This is also your “Do Not Sell My Personal Information” control. Turn it off to opt out
             of sale, sharing, and ad targeting. Required map features still work.
