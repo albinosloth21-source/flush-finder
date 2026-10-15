@@ -1752,3 +1752,12 @@ describe("sell my data & personalized ads defaults off", () => {
     assert.doesNotMatch(sql, /^\s*update\s/im);
   });
 });
+
+describe("search label", () => {
+  it("shows 'Snoop to Poop' with a descriptive aria-label", () => {
+    const src = readFileSync(new URL("../components/finder-app.tsx", import.meta.url), "utf8");
+    assert.match(src, /placeholder="Snoop to Poop"\s+aria-label="Search a place"/);
+    assert.match(src, /onClick=\{searchInstead\} aria-label="Search a place">[\s\S]{0,80}Snoop to Poop/);
+    assert.doesNotMatch(src, /Search a city|placeholder="Search a place"/);
+  });
+});

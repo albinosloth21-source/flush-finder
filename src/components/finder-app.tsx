@@ -542,7 +542,7 @@ export function FinderApp() {
                   setSearchOpen(true);
                 }}
                 onFocus={() => setSearchOpen(true)}
-                placeholder="Search a place"
+                placeholder="Snoop to Poop"
                 aria-label="Search a place"
                 className="h-11 border-0 bg-foreground/5 pl-9"
               />
@@ -694,9 +694,9 @@ export function FinderApp() {
                   </Button>
                 ) : null}
                 {locationHelp.actions.includes("search") ? (
-                  <Button size="sm" variant="outline" onClick={searchInstead}>
+                  <Button size="sm" variant="outline" onClick={searchInstead} aria-label="Search a place">
                     <Search className="size-4" />
-                    Search a city
+                    Snoop to Poop
                   </Button>
                 ) : null}
               </div>
