@@ -2,6 +2,7 @@ import { genericOAuthClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 import { runPreSignInSignOut, runSignOut } from "../../../scripts/sign-out-plan.mjs";
 import { GROK_PROVIDERS } from "./providers";
+import { browserTokenStores, readPersistedBearer, writePersistedBearer } from "@/lib/session-token";
 
 /**
  * Better Auth client for this React SPA (browser-side).
@@ -40,31 +41,17 @@ export const authEnabled = import.meta.env.VITE_AUTH_ENABLED !== "false";
 /** The upstream providers to render sign-in buttons for. */
 export { GROK_PROVIDERS };
 
-// ── Live-preview bearer token ────────────────────────────────────────────────
-// The embedded preview iframe has partitioned cookies, so we keep the session's
-// bearer token in sessionStorage and attach it to every Better Auth request (and
-// to server functions, via `@/lib/auth/middleware`). Empty everywhere except the
-// preview after a popup sign-in, so the cookie path is untouched elsewhere.
-const BEARER_KEY = "grok-auth.bearer-token";
-
-/** The stored preview bearer token, or null. */
+// ── Live-preview / native bearer token ───────────────────────────────────────
+// Partitioned preview cookies cannot be read, so the session rides a bearer.
+// localStorage keeps that token when the app is closed and reopened; sessionStorage
+// is still written so a mid-session tab has it too.
+/** The stored session bearer token, or null. */
 export function getBearerToken(): string | null {
-  if (typeof window === "undefined") return null;
-  try {
-    return window.sessionStorage.getItem(BEARER_KEY);
-  } catch {
-    return null;
-  }
+  return readPersistedBearer(browserTokenStores());
 }
 
 function setBearerToken(token: string | null): void {
-  if (typeof window === "undefined") return;
-  try {
-    if (token) window.sessionStorage.setItem(BEARER_KEY, token);
-    else window.sessionStorage.removeItem(BEARER_KEY);
-  } catch {
-    /* storage unavailable — ignore */
-  }
+  writePersistedBearer(token, browserTokenStores());
 }
 
 /**
