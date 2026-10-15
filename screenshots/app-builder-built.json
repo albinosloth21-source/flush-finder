@@ -7,9 +7,9 @@
       "status": 200,
       "title": "Flush Finder",
       "hasCanvas": false,
-      "bodyTextLen": 1053,
-      "bodyTextHash": "f33078c7b83442df09e2d79bdd7a854eb079735a8038f41c5fcb69d3bd043615",
-      "bodyTextPrefix": "Flush Finder Local restrooms, rated in toilets. HOW IT WORKS Rat",
+      "bodyTextLen": 301,
+      "bodyTextHash": "30863e5809e0e7cccaf3d0fb07d7d81b5f818f7928f052c44d3cbe03dc653a53",
+      "bodyTextPrefix": "Satellite Sign in 1 mile 2 miles 5 miles 10 miles Re-center Star",
       "horizontalOverflow": false,
       "consoleErrors": [],
       "pageErrors": [],
@@ -21,9 +21,9 @@
       "status": 200,
       "title": "Flush Finder",
       "hasCanvas": false,
-      "bodyTextLen": 772,
-      "bodyTextHash": "5e41712e53367b6fcfe2cbe44193638877b9b4e616425ec9f964871d98599770",
-      "bodyTextPrefix": "NEARBY 9 restrooms All Public Customers Rated Westfield Centre 4",
+      "bodyTextLen": 293,
+      "bodyTextHash": "288ee60cce51f10f3875615525d9d3a7fd8658fb1a866c8c6ecc78d66d001c07",
+      "bodyTextPrefix": "Satellite 1 mile 2 miles 5 miles 10 miles Re-center Start on you",
       "horizontalOverflow": false,
       "consoleErrors": [],
       "pageErrors": [],
@@ -35,7 +35,7 @@
   "verdictFile": "/workspace/screenshots/app-builder-built.json",
   "divergesFromBaseline": true,
   "baselineReasons": [
-    "desktop: body text replaced (similar length, page start changed)",
-    "mobile: body text changed (387 -> 772 chars, hash mismatch)"
+    "desktop: body text changed (209 -> 301 chars, hash mismatch)",
+    "mobile: body text replaced (similar length, page start changed)"
   ]
 }

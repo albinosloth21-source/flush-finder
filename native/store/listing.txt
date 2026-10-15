@@ -72,3 +72,6 @@ On your computer, after the web app is live:
   Upload the .aab to Play Console (production track)
 
 Do not share your keystore. versionCode is 1, versionName is 1.0 for the first listing.
+
+iPhone / App Store:
+Flush Finder is also wrapped for iOS (same app id com.flushfinder.app). See native/store/appstore/listing.txt for App Store copy, privacy nutrition labels, and Xcode archive steps.
