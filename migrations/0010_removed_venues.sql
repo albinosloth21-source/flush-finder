@@ -8,5 +8,6 @@ create table if not exists removed_venues (
   removed_by text not null,
   created_at timestamptz not null default now()
 );
+
 create index if not exists removed_venues_osm_idx on removed_venues (osm_id);
 create index if not exists removed_venues_geo_idx on removed_venues (lat, lng);

@@ -8,6 +8,8 @@ create table if not exists user_badges (
   primary key (user_id, badge_id)
 );
 
+create index if not exists user_badges_user_idx on user_badges (user_id);
+
 create table if not exists points_ledger (
   id text primary key,
   user_id text not null,
@@ -15,5 +17,7 @@ create table if not exists points_ledger (
   reason text not null,
   created_at timestamptz not null default now()
 );
+
+create index if not exists points_ledger_user_idx on points_ledger (user_id, created_at desc);
 
 alter table reviews add column if not exists reviewer_title text;
