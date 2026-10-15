@@ -1,16 +1,33 @@
 import { formatToiletScore } from "./toilet-score";
 import type { AccessType, VenueKind } from "./types";
 
-export const ACCESS_OPTIONS: { value: Exclude<AccessType, "unknown">; label: string; hint: string }[] = [
-  { value: "public", label: "Open to public", hint: "No purchase needed" },
-  { value: "customers", label: "Customers only", hint: "Need to buy something" },
-];
+export const ACCESS_OPTIONS: { value: Exclude<AccessType, "unknown">; label: string; hint: string }[] =
+  [
+    { value: "public", label: "Open to public", hint: "No purchase needed" },
+    { value: "customers", label: "Customers only", hint: "Need to buy something" },
+  ];
 
 export const RATING_ASPECTS = [
-  { key: "cleanliness", label: "Cleanliness", captions: ["Grim", "Iffy", "Acceptable", "Tidy", "Sparkling"] },
-  { key: "availability", label: "Availability", captions: ["Locked", "Spotty", "Mixed", "Reliable", "Always on"] },
-  { key: "accessibility", label: "Accessibility", captions: ["Blocked", "Tight", "Workable", "Easy", "Step-free"] },
-  { key: "atmosphere", label: "Atmosphere", captions: ["Grim", "Awkward", "Neutral", "Pleasant", "Inviting"] },
+  {
+    key: "cleanliness",
+    label: "Cleanliness",
+    captions: ["Grim", "Iffy", "Acceptable", "Tidy", "Sparkling"],
+  },
+  {
+    key: "availability",
+    label: "Availability",
+    captions: ["Locked", "Spotty", "Mixed", "Reliable", "Always on"],
+  },
+  {
+    key: "accessibility",
+    label: "Accessibility",
+    captions: ["Blocked", "Tight", "Workable", "Easy", "Step-free"],
+  },
+  {
+    key: "atmosphere",
+    label: "Atmosphere",
+    captions: ["Grim", "Awkward", "Neutral", "Pleasant", "Inviting"],
+  },
 ] as const;
 
 export type RatingAspectKey = (typeof RATING_ASPECTS)[number]["key"];
@@ -40,6 +57,7 @@ export const VENUE_LABELS: Record<VenueKind, string> = {
   grocery: "Grocery",
   park: "Park",
   business: "Business",
+  home: "Personal restroom",
 };
 
 export const VENUE_HINTS: Record<VenueKind, string> = {
@@ -47,9 +65,15 @@ export const VENUE_HINTS: Record<VenueKind, string> = {
   restaurant: "Restroom for customers",
   gas: "Ask inside or use a key",
   grocery: "Usually at the back",
-  park: "Park facility",
+  park: "Park stall — pin the restroom, not the entrance",
   business: "Customers or visitors",
+  home: "A restroom at a home or private place",
 };
+
+export function scoreLabel(value: number | null): string {
+  if (value == null) return "—";
+  return value.toFixed(1).replace(/\.0$/, "");
+}
 
 export const REMOVE_REASONS = [
   { value: "gone", label: "No longer here" },
@@ -57,3 +81,5 @@ export const REMOVE_REASONS = [
   { value: "no_restroom", label: "No restroom" },
   { value: "unavailable", label: "Unavailable to the public" },
 ] as const;
+
+export type RemoveReason = (typeof REMOVE_REASONS)[number]["value"];

@@ -1,7 +1,8 @@
 import { PIN_MIN_ZOOM } from "./constants.ts";
 import { pinIdNearPoint, pinsVisibleAtZoom } from "./map-hit.ts";
 import { hideRemoved, mergeBathrooms } from "./merge-bathrooms.ts";
-import { isCatalogSource } from "./pin-policy.ts";
+import { isCatalogSource, isPresetParkPin } from "./pin-policy.ts";
+import { isWorshipVenue } from "./worship.ts";
 import type { Bathroom } from "./types.ts";
 
 export function composeMapPins(opts: {
@@ -18,7 +19,7 @@ export function composeMapPins(opts: {
   return hideRemoved(merged, {
     ids: opts.removedIds ?? [],
     osmIds: opts.removedOsmIds,
-  });
+  }).filter((pin) => !isWorshipVenue(pin.name) && !isPresetParkPin(pin));
 }
 
 export function resolveOpenPin<T extends { id: string }>(
