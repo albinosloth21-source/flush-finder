@@ -17,6 +17,7 @@ export const deleteMyAccount = createServerFn({ method: "POST" })
     const { getSql } = await import("@/lib/db");
     const sql = await getSql();
     const uid = context.userId;
+
     await runQuiet(() =>
       sql.query(
         `update reviews set reviewer_name = 'Deleted user', reviewer_title = null, user_id = null where user_id = $1`,

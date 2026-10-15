@@ -49,4 +49,21 @@ export function shopAction(input: {
   return "buy";
 }
 
+export type OverlayPhase = "closed" | "open" | "hiding";
+
+export function overlayAfter(phase: OverlayPhase, action: "open" | "close" | "unmount"): OverlayPhase {
+  if (action === "open") return "open";
+  if (action === "close") return phase === "closed" ? "closed" : "hiding";
+  if (action === "unmount") return "closed";
+  return phase;
+}
+
+export function overlayShowsMap(phase: OverlayPhase): boolean {
+  return phase !== "open";
+}
+
+export function overlayMountsPanel(phase: OverlayPhase): boolean {
+  return phase === "open" || phase === "hiding";
+}
+
 export { TIER_LABEL, STARTER_BADGE_ID };
