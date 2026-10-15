@@ -11,7 +11,7 @@ import {
 } from "./wallet-logic.ts";
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { isCivil } from "./moderation.ts";
 import {
@@ -22,7 +22,7 @@ import {
   haversineMeters,
   roundBounds,
 } from "./geo.ts";
-import { isMapChromeTarget, pinIdNearPoint, pinsVisibleAtZoom } from "./map-hit.ts";
+import { isMapChromeTarget, pinIdNearPoint, pinsNearPoint, pinsVisibleAtZoom } from "./map-hit.ts";
 import {
   accidentalPinRemovable,
   catalogStaysPublic,
@@ -36,7 +36,7 @@ import {
 import { mergeBathrooms, hideRemoved } from "./merge-bathrooms.ts";
 import { filterCatalog } from "./poi-catalog.ts";
 import { buildGrid, keysForBounds, lookupGrid, tileKey } from "./poi-grid.ts";
-import { PIN_MIN_ZOOM } from "./constants.ts";
+import { PIN_MIN_ZOOM, US_CENTER, US_OVERVIEW_ZOOM } from "./constants.ts";
 import {
   ADD_BURST_LIMIT,
   ADD_HOLD_MS,
@@ -46,6 +46,7 @@ import {
   emptyWorld,
   holdActive,
   isCatalogSource,
+  isPresetParkPin,
   isVisibleOnMap,
   idsToPromoteNationwide,
   pointsForAddedPin,
@@ -68,7 +69,58 @@ import {
   parseAllowFlag,
 } from "./privacy-choices.ts";
 import { parseKeptUser } from "./session-keep-parse.ts";
+import {
+  AUTH_BEARER_KEY,
+  readPersistedBearer,
+  sessionSurvivesAppClose,
+  writePersistedBearer,
+  type TokenStore,
+} from "./session-token.ts";
 import { boundsFromView, parseSavedMapView, viewFromBounds } from "./map-view.ts";
+import {
+  DEFAULT_RADIUS_MILES,
+  RADIUS_MILES,
+  boundsForRadius,
+  formatOperatingHours,
+  hoursFromPin,
+  hoursStatus,
+  isAllDay,
+  isOpenAt,
+  joinDaysOpen,
+  matchesNearbyFilter,
+  milesToMeters,
+  parseDaysOpen,
+  pinsInRadius,
+  radiusPixelsAtZoom,
+  reportHours,
+  weekSchedule,
+  zoomForMiles,
+  type WeekDay,
+} from "./search-radius.ts";
+import {
+  locatedStartView,
+  resolveMapStart,
+  shouldAskForLocation,
+  shouldAutoLocate,
+  shouldFitRadiusOnMap,
+  shouldInstantMapJump,
+  sameMapView,
+  preferLabeledMap,
+  usOverviewView,
+} from "./map-start.ts";
+import {
+  clusterZoom,
+  crowdedTapAction,
+  densePinHitPx,
+  listSheetAfterPinTap,
+  listSheetOpen,
+  pinIconSize,
+  snapListSheet,
+  snapReviewSheet,
+  tapIsPan,
+  tapRevealsHiddenList,
+} from "./map-sheet.ts";
+import { isWorshipVenue } from "./worship.ts";
 import {
   ACCOUNT_TABS,
   filterTitleShop,
@@ -78,7 +130,7 @@ import {
   shopAction,
   shopPriceLabel,
 } from "./account-shop.ts";
-import type { Bathroom, VenueKind } from "./types.ts";
+import { VENUE_KINDS, type Bathroom, type VenueKind } from "./types.ts";
 
 function room(partial: Partial<Bathroom> & { id: string; lat: number; lng: number }): Bathroom {
   return {
@@ -780,8 +832,39 @@ describe("Map pins 100,000 appear/open/remove checks", () => {
       room({ id: "osm:gas:exxon", name: "Exxon", lat: 32.331, lng: -96.122, source: "osm", kind: "gas", osmId: "node/1" }),
       room({ id: "osm:groc:walmart", name: "Walmart Supercenter", lat: 32.332, lng: -96.123, source: "osm", kind: "grocery", osmId: "node/2" }),
       room({ id: "osm:food:mcd", name: "McDonald's", lat: 32.329, lng: -96.121, source: "osm", kind: "restaurant", osmId: "node/3" }),
-      room({ id: "seed-park", name: "City Park", lat: 32.328, lng: -96.12, source: "seed", kind: "park" }),
+      room({ id: "osm:toilet:station", name: "Station restroom", lat: 32.328, lng: -96.12, source: "osm", kind: "toilet", osmId: "node/4" }),
     ];
+    const presetPark = room({
+      id: "seed-park",
+      name: "City Park",
+      lat: 32.328,
+      lng: -96.12,
+      source: "seed",
+      kind: "park",
+    });
+    const userPark = room({
+      id: "user-park-stall",
+      name: "Park restroom",
+      lat: 32.327,
+      lng: -96.119,
+      source: "user",
+      kind: "park",
+      visibility: "public",
+    });
+    check(isPresetParkPin(presetPark), "seed park is preset");
+    check(!isPresetParkPin(userPark), "user park stall is not preset");
+    check(composeMapPins({ zoom: 15, db: [presetPark] }).length === 0, "preset parks stay off the map");
+    check(
+      composeMapPins({
+        zoom: 15,
+        db: [room({ id: "balboa", name: "Balboa Park", lat: 32.33, lng: -96.12, source: "seed", kind: "toilet" })],
+      }).length === 0,
+      "park-named centroids stay off the map",
+    );
+    check(
+      composeMapPins({ zoom: 15, db: [userPark] }).some((pin) => pin.id === "user-park-stall"),
+      "user park stalls remain",
+    );
 
     check(composeMapPins({ zoom: 12, db: catalog }).length === 0, "zoom out hides every pin");
     const shown = composeMapPins({ zoom: 15, db: [], osm: catalog });
@@ -1025,6 +1108,540 @@ describe("Account overlay 10,000 checks", () => {
     }
 
     check(n >= 10_000, `expected 10000+ checks, got ${n}`);
+  });
+});
+
+describe("Radius search, worship filter, and operating hours", () => {
+  it("keeps pins inside the bubble, drops churches, and formats hours", () => {
+    let n = 0;
+    const check = (ok: unknown, message: string) => {
+      n += 1;
+      assert.ok(ok, `#${n} ${message}`);
+    };
+
+    check(RADIUS_MILES.join(",") === "1,2,5,10", "radius choices");
+    check(DEFAULT_RADIUS_MILES === 2, "default two miles");
+    check(Math.round(milesToMeters(1)) === 1609, "mile to meters");
+    check(zoomForMiles(1) > zoomForMiles(10), "smaller radius is closer zoom");
+    check(zoomForMiles(2) === 13 && zoomForMiles(5) === 12 && zoomForMiles(10) === 11, "zoom steps");
+    check(US_OVERVIEW_ZOOM <= 4 && US_OVERVIEW_ZOOM < zoomForMiles(10), "no-location start is far US overview");
+    check(US_CENTER.lat > 24 && US_CENTER.lat < 50, "US center latitude");
+    check(US_CENTER.lng < -66 && US_CENTER.lng > -125, "US center longitude");
+    check(radiusPixelsAtZoom(2, US_OVERVIEW_ZOOM, US_CENTER.lat) < 20, "2 mile ring is a speck at US overview");
+    check(usOverviewView().lat === US_CENTER.lat && usOverviewView().zoom === US_OVERVIEW_ZOOM, "overview helper");
+    const here = { lat: 32.33102, lng: -96.122 };
+    check(locatedStartView(here, 2).zoom === zoomForMiles(2), "shared location uses radius-fit zoom");
+    check(locatedStartView(here, 2).lat === here.lat && locatedStartView(here, 2).lng === here.lng, "shared location is on the user");
+    check(resolveMapStart({ permission: "denied", coords: null }).zoom === US_OVERVIEW_ZOOM, "denied location stays on US");
+    check(resolveMapStart({ permission: "granted", coords: here }).zoom === zoomForMiles(2), "granted location uses radius zoom");
+    check(shouldAutoLocate("granted", null) && !shouldAutoLocate("prompt", null), "auto-locate only when already allowed");
+    check(!shouldAutoLocate("prompt", "share") && !shouldAutoLocate("denied", "browse"), "do not locate without OS permission");
+    check(!shouldAutoLocate("denied", "share"), "denied never auto-locates");
+    check(shouldAskForLocation("prompt", null) && shouldAskForLocation("unknown", null), "ask when permission is unset");
+    check(!shouldAskForLocation("granted", null) && !shouldAskForLocation("denied", null), "do not ask after a decision");
+    check(!shouldAskForLocation("prompt", "browse") && !shouldAskForLocation("prompt", "share"), "do not re-ask this session");
+    check(!shouldFitRadiusOnMap(US_OVERVIEW_ZOOM) && shouldFitRadiusOnMap(13), "radius chips do not zoom into Kansas from US overview");
+    check(preferLabeledMap(US_OVERVIEW_ZOOM) && !preferLabeledMap(13), "wide US uses labeled streets");
+    check(
+      shouldInstantMapJump(usOverviewView(), locatedStartView(here, 2), 1_000_000),
+      "country jump snaps instead of animating",
+    );
+    check(!shouldInstantMapJump({ ...here, zoom: 13 }, { ...here, zoom: 13.2 }, 80), "tiny local move can animate");
+    check(sameMapView(usOverviewView(), usOverviewView()), "same overview is a no-op");
+    check(radiusPixelsAtZoom(2, 13) > radiusPixelsAtZoom(2, 11), "2 mile bubble shrinks when zooming out");
+    check(radiusPixelsAtZoom(2, 15) > radiusPixelsAtZoom(2, 13), "2 mile bubble grows when zooming in");
+    check(radiusPixelsAtZoom(10, 12) > radiusPixelsAtZoom(2, 12), "10 mile ring larger than 2 mile at same zoom");
+    check(radiusPixelsAtZoom(2, 8) < 40, "far zoom-out makes 2 miles a small ring");
+
+    const origin = { lat: 32.33102, lng: -96.122 };
+    const box = boundsForRadius(origin, 2);
+    check(box.south < origin.lat && box.north > origin.lat, "radius bounds include lat");
+    check(box.west < origin.lng && box.east > origin.lng, "radius bounds include lng");
+    const inside = room({ id: "near", lat: origin.lat + 0.005, lng: origin.lng, name: "Near stall" });
+    const outside = room({ id: "far", lat: origin.lat + 0.08, lng: origin.lng, name: "Far stall" });
+    const inTwo = pinsInRadius([inside, outside], origin, 2);
+    check(inTwo.some((pin) => pin.id === "near"), "nearby pin kept");
+    check(!inTwo.some((pin) => pin.id === "far"), "far pin dropped at 2 miles");
+    const inTen = pinsInRadius([inside, outside], origin, 10);
+    check(inTen.some((pin) => pin.id === "far"), "far pin appears at 10 miles");
+
+    const crowd = Array.from({ length: 400 }, (_, i) =>
+      room({ id: `crowd-${i}`, lat: origin.lat + i * 0.00001, lng: origin.lng }),
+    );
+    check(pinsInRadius(crowd, origin, 10).length === 220, "radius cap");
+
+    check(isWorshipVenue("First Baptist Church"), "church name");
+    check(isWorshipVenue("St. Mary's Cathedral"), "cathedral");
+    check(isWorshipVenue("Masjid Al-Noor"), "mosque");
+    check(isWorshipVenue("Temple Beth El Synagogue"), "synagogue");
+    check(isWorshipVenue("Kingdom Hall"), "kingdom hall");
+    check(isWorshipVenue("Public restroom", { amenity: "place_of_worship" }), "amenity worship");
+    check(!isWorshipVenue("Shell"), "gas not worship");
+    check(!isWorshipVenue("Walmart Supercenter"), "grocery not worship");
+    check(!isWorshipVenue("City Park restroom"), "park not worship");
+
+    const church = room({
+      id: "osm:church",
+      name: "First United Methodist Church",
+      lat: origin.lat,
+      lng: origin.lng,
+      source: "osm",
+      kind: "business",
+    });
+    const gas = room({
+      id: "osm:gas:shell",
+      name: "Shell",
+      lat: origin.lat,
+      lng: origin.lng,
+      source: "osm",
+      kind: "gas",
+    });
+    const shown = composeMapPins({ zoom: 15, db: [church, gas] });
+    check(!shown.some((pin) => pin.id === "osm:church"), "church pin hidden");
+    check(shown.some((pin) => pin.id === "osm:gas:shell"), "gas pin remains");
+
+    check(matchesNearbyFilter(room({ id: "p", lat: 1, lng: 1, visibility: "personal", kind: "toilet" }), "personal"), "personal tab");
+    check(!matchesNearbyFilter(room({ id: "p2", lat: 1, lng: 1, visibility: "public", kind: "toilet" }), "personal"), "public not personal");
+    check(matchesNearbyFilter(room({ id: "g", lat: 1, lng: 1, kind: "gas" }), "gas"), "gas tab");
+    check(matchesNearbyFilter(room({ id: "r", lat: 1, lng: 1, reviewCount: 2 }), "rated"), "rated tab");
+    check(matchesNearbyFilter(room({ id: "a", lat: 1, lng: 1, kind: "park" }), "all"), "all tab");
+    check(matchesNearbyFilter(room({ id: "t", lat: 1, lng: 1, kind: "toilet" }), "all"), "toilets stay in all");
+    check(matchesNearbyFilter(room({ id: "pk", lat: 1, lng: 1, kind: "park" }), "park"), "parks tab");
+    check(matchesNearbyFilter(room({ id: "b", lat: 1, lng: 1, kind: "business" }), "business"), "shops tab");
+    check(isPresetParkPin(room({ id: "osm-park", lat: 1, lng: 1, source: "osm", kind: "park" })), "osm park is preset");
+    check(!isPresetParkPin(room({ id: "mine-park", lat: 1, lng: 1, source: "user", kind: "park" })), "user park not preset");
+    check(
+      isPresetParkPin(room({ id: "named-park", lat: 1, lng: 1, source: "seed", kind: "toilet", name: "Balboa Park" })),
+      "named park centroid is preset",
+    );
+    check(
+      !isPresetParkPin(
+        room({ id: "park-stall", lat: 1, lng: 1, source: "seed", kind: "toilet", name: "Bryant Park Restrooms" }),
+      ),
+      "named park restroom stays",
+    );
+
+    check(formatOperatingHours({ hoursOpen: "09:00", hoursClose: "17:00" }) === "9 AM – 5 PM", "hour span");
+    check(formatOperatingHours({ hoursOpen: "08:30", hoursClose: "20:00", daysOpen: ["Mon", "Tue"] })?.includes("Mon"), "hours with days");
+    check(formatOperatingHours({ daysOpen: ["Sat", "Sun"] }) === "Sat · Sun", "days only");
+    check(formatOperatingHours({}) === null, "empty hours");
+    check(formatOperatingHours({ hoursOpen: "00:00", hoursClose: "24:00" }) === "Open 24 hours", "24 hour label");
+    check(parseDaysOpen("Mon,Wed,Fri").join(",") === "Mon,Wed,Fri", "parse days");
+    check(joinDaysOpen(["Mon", "nope", "Fri"]) === "Mon,Fri", "join days");
+    check(hoursFromPin({ hoursOpen: "06:00", hoursClose: "22:00" })?.includes("AM"), "pin hours");
+    check(
+      hoursFromPin({}, [{ hoursOpen: "11:00", hoursClose: "14:00", daysOpen: ["Sun"] }])?.includes("Sun"),
+      "hours from latest review",
+    );
+    check(isAllDay({ hoursOpen: "00:00", hoursClose: "24:00" }), "midnight to midnight is all day");
+    check(!isAllDay({ hoursOpen: "09:00", hoursClose: "17:00" }), "office hours are not all day");
+    const weekday = {
+      hoursOpen: "09:00",
+      hoursClose: "17:00",
+      daysOpen: ["Mon", "Tue", "Wed", "Thu", "Fri"] as WeekDay[],
+    };
+    const mondayTen = new Date("2026-09-14T10:00:00");
+    const mondayEight = new Date("2026-09-14T08:00:00");
+    const mondayEightPm = new Date("2026-09-14T20:00:00");
+    const sundayNoon = new Date("2026-09-13T12:00:00");
+    check(isOpenAt(weekday, mondayTen) === true, "open mid morning");
+    check(isOpenAt(weekday, mondayEight) === false, "closed before open");
+    check(isOpenAt(weekday, mondayEightPm) === false, "closed after close");
+    check(isOpenAt(weekday, sundayNoon) === false, "closed Sunday");
+    const overnight = { hoursOpen: "22:00", hoursClose: "06:00", daysOpen: [] as WeekDay[] };
+    check(isOpenAt(overnight, new Date("2026-09-14T23:30:00")) === true, "overnight still open late");
+    check(isOpenAt(overnight, new Date("2026-09-15T03:00:00")) === true, "overnight still open after midnight");
+    check(isOpenAt(overnight, new Date("2026-09-14T12:00:00")) === false, "overnight closed midday");
+    check(hoursStatus(null).state === "unknown", "no hours is unknown");
+    check(hoursStatus(weekday, mondayTen).state === "open", "status open");
+    check(hoursStatus(weekday, sundayNoon).state === "closed", "status closed");
+    check(hoursStatus({ hoursOpen: "00:00", hoursClose: "24:00", daysOpen: [] }, mondayTen).headline.includes("24"), "24h headline");
+    check(weekSchedule(weekday).filter((row) => !row.closed).length === 5, "weekdays only");
+    check(weekSchedule(weekday).find((row) => row.day === "Sun")?.closed, "Sunday closed on weekday hours");
+    check(reportHours({}, [{ hoursOpen: "09:00", hoursClose: "17:00", daysOpen: ["Mon"] }])?.hoursOpen === "09:00", "hours from review");
+    const panel = readFileSync(new URL("../components/bathroom-panel.tsx", import.meta.url), "utf8");
+    check(panel.includes("data-ff-hours-tab"), "hours tab on restroom");
+    check(panel.includes("data-ff-review-hours"), "hours tab on review form");
+    check(panel.includes("data-ff-hours-panel"), "hours schedule panel");
+    check(panel.includes("Open 24 hours"), "24 hour control");
+
+    for (let i = 0; i < 80; i += 1) {
+      const miles = RADIUS_MILES[i % RADIUS_MILES.length];
+      const jitter = { lat: origin.lat + i * 0.0002, lng: origin.lng - i * 0.0002 };
+      const kept = pinsInRadius([inside, { ...outside, lat: jitter.lat, lng: jitter.lng }], origin, miles);
+      check(kept.every((pin) => haversineMeters(origin, pin) <= milesToMeters(miles) + 1), `pins inside ${miles} mi`);
+      check(zoomForMiles(miles) >= 11 && zoomForMiles(miles) <= 14, "zoom in range");
+      const label = formatOperatingHours({
+        hoursOpen: `${String(8 + (i % 4)).padStart(2, "0")}:00`,
+        hoursClose: `${String(16 + (i % 5)).padStart(2, "0")}:00`,
+        daysOpen: i % 2 ? ["Mon", "Tue", "Wed"] : ["Thu", "Fri"],
+      });
+      check(Boolean(label && label.includes("–")), "formatted hours");
+      check(isWorshipVenue(i % 2 ? "Grace Chapel" : "Cathedral of Hope") === true, "worship names");
+      check(isWorshipVenue(i % 2 ? "Exxon" : "Kroger") === false, "secular names");
+      const sample = {
+        hoursOpen: `${String(8 + (i % 4)).padStart(2, "0")}:00`,
+        hoursClose: `${String(16 + (i % 5)).padStart(2, "0")}:00`,
+        daysOpen: (i % 2 ? ["Mon", "Tue", "Wed"] : ["Thu", "Fri"]) as Array<"Mon" | "Tue" | "Wed" | "Thu" | "Fri">,
+      };
+      const noon = new Date("2026-09-17T12:00:00");
+      check(hoursStatus(sample, noon).state === "open" || hoursStatus(sample, noon).state === "closed", "status is known");
+      check(weekSchedule(sample).length === 7, "seven day schedule");
+    }
+
+    check(n > 90, `radius/hours checks ${n}`);
+  });
+});
+
+describe("iPhone and Android native wraps", () => {
+  it("ships Capacitor shells, location permission copy, and store listings", () => {
+    const plist = readFileSync(new URL("../../ios/App/App/Info.plist", import.meta.url), "utf8");
+    assert.match(plist, /NSLocationWhenInUseUsageDescription/);
+    assert.match(plist, /NSLocationAlwaysAndWhenInUseUsageDescription/);
+    assert.match(plist, /ITSAppUsesNonExemptEncryption/);
+    assert.match(plist, /Flush Finder uses your location/);
+    assert.match(plist, /UIStatusBarStyleLightContent/);
+    assert.doesNotMatch(plist, /NSUserTrackingUsageDescription/);
+    assert.match(plist, /<string>maps<\/string>/);
+
+    const privacy = readFileSync(new URL("../../ios/App/App/PrivacyInfo.xcprivacy", import.meta.url), "utf8");
+    assert.match(privacy, /NSPrivacyCollectedDataTypePreciseLocation/);
+    assert.match(privacy, /NSPrivacyAccessedAPICategoryUserDefaults/);
+
+    const pbx = readFileSync(new URL("../../ios/App/App.xcodeproj/project.pbxproj", import.meta.url), "utf8");
+    assert.match(pbx, /PRODUCT_BUNDLE_IDENTIFIER = com\.flushfinder\.app/);
+    assert.match(pbx, /PrivacyInfo\.xcprivacy in Resources/);
+    assert.match(pbx, /TARGETED_DEVICE_FAMILY = "1,2"/);
+
+    const android = readFileSync(new URL("../../android/app/src/main/AndroidManifest.xml", import.meta.url), "utf8");
+    assert.match(android, /ACCESS_FINE_LOCATION/);
+    const androidStrings = readFileSync(new URL("../../android/app/src/main/res/values/strings.xml", import.meta.url), "utf8");
+    assert.match(androidStrings, /com\.flushfinder\.app/);
+
+    assert.equal(existsSync(new URL("../../native/store/listing.txt", import.meta.url)), true);
+    assert.equal(existsSync(new URL("../../native/store/appstore/listing.txt", import.meta.url)), true);
+    const appStore = readFileSync(new URL("../../native/store/appstore/listing.txt", import.meta.url), "utf8");
+    assert.match(appStore, /com\.flushfinder\.app/);
+    assert.match(appStore, /npx cap sync ios/);
+    assert.match(appStore, /App Store Connect/);
+  });
+});
+
+describe("Radius bubble 10,000 live-map checks", () => {
+  it("keeps pins inside the mile ring and shrinks the ring when zooming out", () => {
+    let n = 0;
+    const check = (ok: unknown, message: string) => {
+      n += 1;
+      assert.ok(ok, `#${n} ${message}`);
+    };
+
+    const cities = [
+      { lat: 32.33102, lng: -96.122 },
+      { lat: 32.7767, lng: -96.797 },
+      { lat: 40.758, lng: -73.9855 },
+      { lat: 34.0522, lng: -118.2437 },
+      { lat: 41.8781, lng: -87.6298 },
+      { lat: 29.7604, lng: -95.3698 },
+      { lat: 47.6062, lng: -122.3321 },
+      { lat: 25.7617, lng: -80.1918 },
+    ];
+    const kinds: VenueKind[] = ["toilet", "restaurant", "gas", "grocery", "park", "business"];
+
+    for (let i = 0; i < 1_000; i += 1) {
+      const origin = cities[i % cities.length];
+      const miles = RADIUS_MILES[i % RADIUS_MILES.length];
+      const zoomIn = zoomForMiles(miles);
+      const zoomOut = zoomIn - 2;
+      const pxIn = radiusPixelsAtZoom(miles, zoomIn, origin.lat);
+      const pxOut = radiusPixelsAtZoom(miles, zoomOut, origin.lat);
+      check(pxIn > pxOut, "ring shrinks on zoom out");
+      check(radiusPixelsAtZoom(miles, zoomIn + 1, origin.lat) > pxIn, "ring grows on zoom in");
+      check(radiusPixelsAtZoom(10, zoomIn, origin.lat) > radiusPixelsAtZoom(1, zoomIn, origin.lat), "10 mile ring bigger than 1");
+      check(zoomIn >= 11 && zoomIn <= 14, "fit zoom in range");
+
+      const latStep = miles / 69;
+      const inside = room({
+        id: `in-${i}`,
+        lat: origin.lat + latStep * 0.25,
+        lng: origin.lng,
+        kind: kinds[i % kinds.length],
+        name: i % 7 === 0 ? "Shell" : `Stall ${i}`,
+      });
+      const outside = room({
+        id: `out-${i}`,
+        lat: origin.lat + latStep * 1.8,
+        lng: origin.lng,
+        kind: kinds[(i + 1) % kinds.length],
+        name: "Far stall",
+      });
+      const church = room({
+        id: `church-${i}`,
+        lat: origin.lat,
+        lng: origin.lng,
+        source: "osm",
+        kind: "business",
+        name: i % 2 ? "First Baptist Church" : "St. Mary's Cathedral",
+      });
+      const presetPark = room({
+        id: `park-${i}`,
+        lat: origin.lat + latStep * 0.1,
+        lng: origin.lng,
+        source: "osm",
+        kind: "park",
+        name: "City Park",
+      });
+      const userPark = room({
+        id: `user-park-${i}`,
+        lat: origin.lat + latStep * 0.1,
+        lng: origin.lng,
+        source: "user",
+        kind: "park",
+        name: "Park restroom stall",
+        visibility: "personal",
+        mine: true,
+      });
+
+      const kept = pinsInRadius([inside, outside, church, presetPark, userPark], origin, miles);
+      check(kept.some((pin) => pin.id === inside.id), "inside pin stays");
+      check(!kept.some((pin) => pin.id === outside.id), "outside pin dropped");
+      check(
+        kept.every((pin) => haversineMeters(origin, pin) <= milesToMeters(miles) + 1),
+        "every kept pin is inside miles",
+      );
+
+      const mapped = pinsInRadius(
+        composeMapPins({
+          zoom: zoomIn,
+          minZoom: 0,
+          db: [inside, userPark],
+          osm: [outside, church, presetPark],
+          mine: [userPark],
+        }),
+        origin,
+        miles,
+      );
+      check(!mapped.some((pin) => pin.id === church.id), "church never maps");
+      check(!mapped.some((pin) => pin.id === presetPark.id), "preset park never maps");
+      check(!mapped.some((pin) => pin.id === outside.id), "far pin never maps");
+      check(mapped.some((pin) => pin.id === userPark.id), "user park stall maps");
+      check(matchesNearbyFilter(userPark, "personal"), "personal tab");
+      check(matchesNearbyFilter(userPark, "park"), "parks tab");
+      check(!matchesNearbyFilter(inside, "personal"), "public not personal");
+
+      const startHere = locatedStartView(origin, miles);
+      check(startHere.lat === origin.lat && startHere.lng === origin.lng, "GPS start is on the user");
+      check(startHere.zoom === zoomIn, "GPS start uses radius-fit zoom");
+      check(resolveMapStart({ permission: "denied", coords: null }).zoom < zoomIn, "no GPS is farther than a local bubble");
+      check(!shouldFitRadiusOnMap(US_OVERVIEW_ZOOM), "US overview does not snap to mile zoom");
+    }
+
+    const crowdOrigin = cities[0];
+    const crowd = Array.from({ length: 500 }, (_, i) =>
+      room({ id: `cap-${i}`, lat: crowdOrigin.lat, lng: crowdOrigin.lng + i * 0.000001 }),
+    );
+    check(pinsInRadius(crowd, crowdOrigin, 10).length === 220, "hard cap 220");
+
+    const finder = readFileSync(new URL("../components/finder-app.tsx", import.meta.url), "utf8");
+    check(finder.includes("Use my location"), "share location control");
+    check(finder.includes("Browse the United States"), "skip location control");
+    check(finder.includes("locatedStartView"), "GPS start helper");
+    check(finder.includes("usOverviewView"), "US overview helper");
+    check(finder.includes("readLocationPermission"), "checks permission before prompting the OS");
+    check(finder.includes("localSearch"), "skips pin fetches on the wide US map");
+    check(finder.includes("snapListSheet"), "nearby list slides");
+    check(finder.includes("data-ff-list-sheet"), "list sheet state");
+    check(finder.includes("data-ff-list-peek"), "hidden list has a swipe-up edge");
+    check(finder.includes("listSheetAfterPinTap"), "pin tap restores the pull-up");
+    const sheetCss = readFileSync(new URL("../styles.css", import.meta.url), "utf8");
+    check(sheetCss.includes("translateY(110%)"), "hidden list slides fully off-screen");
+    const canvas = readFileSync(new URL("../components/map-canvas.tsx", import.meta.url), "utf8");
+    check(canvas.includes('aria-label="Zoom in"'), "plus zoom control");
+    check(canvas.includes('aria-label="Zoom out"'), "minus zoom control");
+    check(!canvas.includes("L.control.zoom"), "custom zoom replaces leaflet zoom");
+    check(canvas.includes("crowdedTapAction"), "stacked pins zoom instead of opening");
+    check(canvas.includes("clusterZoom"), "cluster tap zooms in");
+    check(canvas.includes("pinchRef"), "pinch is not a pin tap");
+    check(finder.includes('aria-label="Hide reviews"'), "reviews hide control");
+    check(finder.includes("setExpanded(false)"), "pin tap does not cover the map");
+
+    check(n >= 10_000, `expected 10000+ radius checks, got ${n}`);
+  });
+});
+
+describe("Map zoom buttons and sliding sheets", () => {
+  it("snaps the nearby list away, tightens downtown taps, and treats pans as pans", () => {
+    let n = 0;
+    const check = (ok: unknown, message: string) => {
+      n += 1;
+      assert.ok(ok, `#${n} ${message}`);
+    };
+
+    check(snapListSheet("mid", -80) === "hidden", "swipe down hides list");
+    check(snapListSheet("hidden", 80) === "mid", "swipe up restores list");
+    check(snapListSheet("mid", 80) === "tall", "swipe up expands list");
+    check(snapListSheet("tall", -80) === "mid", "swipe down shrinks tall list");
+    check(snapListSheet("tall", -140) === "hidden", "long swipe from tall hides list");
+    check(snapListSheet("mid", 10) === "mid", "tiny drag stays");
+    check(!listSheetOpen("hidden") && listSheetOpen("mid") && listSheetOpen("tall"), "hidden is closed");
+    check(listSheetAfterPinTap() === "mid", "pin tap brings the list back");
+    check(tapRevealsHiddenList("hidden", 4) && !tapRevealsHiddenList("mid", 4), "tap on hidden edge reveals");
+    check(snapReviewSheet({ tall: false, dy: -80 }) === "closed", "swipe down closes reviews");
+    check(snapReviewSheet({ tall: true, dy: -80 }) === "mid", "swipe down from full first shrinks");
+    check(snapReviewSheet({ tall: true, dy: -140 }) === "closed", "long swipe hides reviews");
+    check(snapReviewSheet({ tall: false, dy: 80 }) === "tall", "swipe up expands reviews");
+    check(densePinHitPx(12) > densePinHitPx(40) && densePinHitPx(40) > densePinHitPx(120), "tighter hits as pins crowd");
+    check(densePinHitPx(220) <= 16, "downtown tap is small");
+    check(tapIsPan(24) && !tapIsPan(8), "moving is a pan, a tap is not");
+    check(crowdedTapAction(8, 14) === "zoom", "stacked pins zoom");
+    check(crowdedTapAction(1, 14) === "select", "lonely pin opens");
+    check(crowdedTapAction(8, 18) === "select", "close-up stacked pin opens");
+    check(crowdedTapAction(0, 16) === "none", "empty tap is empty");
+    check(clusterZoom(14) === 16 && clusterZoom(18) === 19, "cluster zoom steps in");
+    check(pinIconSize(12).w > pinIconSize(40).w && pinIconSize(40).w > pinIconSize(120).w, "pins shrink when crowded");
+    check(pinsNearPoint({ x: 10, y: 10 }, [{ id: "a", x: 10, y: 10 }, { id: "b", x: 12, y: 11 }, { id: "c", x: 90, y: 90 }], 16).length >= 2, "stacked pins share a tap");
+
+    const states: Array<"hidden" | "mid" | "tall"> = ["hidden", "mid", "tall"];
+    for (let i = 0; i < 4_000; i += 1) {
+      const from = states[i % 3];
+      const dy = (i % 17) * 10 - 80;
+      const next = snapListSheet(from, dy);
+      check(states.includes(next), "snap stays in range");
+      if (dy > 48) check(next !== "hidden" || from !== "hidden", "strong up leaves hidden");
+      if (dy < -48) check(next !== "tall" || from !== "tall", "strong down leaves tall");
+      if (dy < -110) check(next === "hidden", "long swipe hides fully");
+      check(listSheetAfterPinTap() === "mid", "pin always restores list");
+      check(tapRevealsHiddenList("hidden", i % 20) === i % 20 <= 12, "hidden tap reveal");
+      const review = snapReviewSheet({ tall: i % 2 === 0, dy });
+      check(review === "tall" || review === "mid" || review === "closed", "review snap");
+      check(densePinHitPx(i) <= 28, "hit cap");
+      check(tapIsPan(i % 40) === i % 40 > 16, "pan threshold");
+      check(["select", "zoom", "none"].includes(crowdedTapAction(i % 5, 10 + (i % 10))), "cluster action");
+      check(pinIconSize(i).w <= 42, "pin size cap");
+      check(clusterZoom(i % 18) <= 19, "cluster zoom cap");
+    }
+
+    check(n > 10_000, `sheet/zoom checks ${n}`);
+  });
+});
+
+describe("Stay signed in, personal restrooms, and seamless running", () => {
+  it("keeps the session across relaunch, tags personal restrooms, and stays smooth", () => {
+    let n = 0;
+    const check = (ok: unknown, message: string) => {
+      n += 1;
+      assert.ok(ok, `#${n} ${message}`);
+    };
+
+    function mem(): TokenStore {
+      const data = new Map<string, string>();
+      return {
+        getItem: (key) => data.get(key) ?? null,
+        setItem: (key, value) => {
+          data.set(key, value);
+        },
+        removeItem: (key) => {
+          data.delete(key);
+        },
+      };
+    }
+
+    const local = mem();
+    const session = mem();
+    writePersistedBearer("tok-abc", { local, session });
+    check(local.getItem(AUTH_BEARER_KEY) === "tok-abc", "token written to local");
+    check(session.getItem(AUTH_BEARER_KEY) === "tok-abc", "token mirrored to session");
+    const relaunch = mem();
+    relaunch.setItem(AUTH_BEARER_KEY, local.getItem(AUTH_BEARER_KEY) ?? "");
+    check(readPersistedBearer({ local: relaunch, session: mem() }) === "tok-abc", "token survives app close");
+    check(sessionSurvivesAppClose("tok-abc", relaunch.getItem(AUTH_BEARER_KEY)), "relaunch helper");
+
+    const leftoverSession = mem();
+    leftoverSession.setItem(AUTH_BEARER_KEY, "old-session");
+    const migratedLocal = mem();
+    check(readPersistedBearer({ local: migratedLocal, session: leftoverSession }) === "old-session", "migrates session token");
+    check(migratedLocal.getItem(AUTH_BEARER_KEY) === "old-session", "migration lands in local");
+
+    writePersistedBearer(null, { local, session });
+    check(readPersistedBearer({ local, session }) === null, "sign out clears token");
+
+    const kept = parseKeptUser(JSON.stringify({ id: "u-keep", displayName: "Sam", primaryEmail: "s@x.co" }));
+    check(kept?.id === "u-keep", "profile keep");
+    check(parseKeptUser(null) === null, "signed out keep is empty");
+
+    check(VENUE_KINDS.includes("home"), "personal restroom kind exists");
+    const labelsSrc = readFileSync(new URL("./labels.ts", import.meta.url), "utf8");
+    check(labelsSrc.includes('home: "Personal restroom"'), "kind label");
+    check(labelsSrc.includes("home:"), "kind hint");
+    check(startingVisibility(true) === "personal", "personal kind starts private");
+    check(
+      matchesNearbyFilter(room({ id: "h1", lat: 1, lng: 1, kind: "home", visibility: "pending" }), "personal"),
+      "home kind shows on personal tab",
+    );
+    check(
+      matchesNearbyFilter(room({ id: "h2", lat: 1, lng: 1, kind: "toilet", visibility: "personal" }), "personal"),
+      "private pin still on personal tab",
+    );
+    check(
+      !matchesNearbyFilter(room({ id: "h3", lat: 1, lng: 1, kind: "gas", visibility: "public" }), "personal"),
+      "gas is not personal",
+    );
+
+    const panel = readFileSync(new URL("../components/bathroom-panel.tsx", import.meta.url), "utf8");
+    check(panel.includes('data-kind={item}'), "kind chips in add form");
+    check(panel.includes('"home"'), "add form can pick home");
+    check(panel.includes("Personal restroom"), "personal restroom copy");
+    const authClient = readFileSync(new URL("../lib/auth/client.ts", import.meta.url), "utf8");
+    check(authClient.includes("readPersistedBearer"), "auth reads persisted bearer");
+    check(authClient.includes("writePersistedBearer"), "auth writes persisted bearer");
+    check(!authClient.includes("sessionStorage.getItem(BEARER_KEY)"), "session-only bearer is gone");
+
+    const origin = { lat: 32.33102, lng: -96.122 };
+    for (let i = 0; i < 1_200; i += 1) {
+      const token = `tok-${i}`;
+      const storeA = mem();
+      const storeB = mem();
+      writePersistedBearer(token, { local: storeA, session: storeB });
+      const relaunched = mem();
+      const saved = storeA.getItem(AUTH_BEARER_KEY);
+      if (saved) relaunched.setItem(AUTH_BEARER_KEY, saved);
+      check(readPersistedBearer({ local: relaunched, session: mem() }) === token, "token roundtrip");
+      check(sessionSurvivesAppClose(token, relaunched.getItem(AUTH_BEARER_KEY)), "close and reopen");
+      if (i % 7 === 0) {
+        writePersistedBearer(null, { local: storeA, session: storeB });
+        check(readPersistedBearer({ local: storeA, session: storeB }) === null, "cleared");
+      }
+
+      const homePin = room({
+        id: `home-${i}`,
+        lat: origin.lat,
+        lng: origin.lng,
+        kind: "home",
+        visibility: i % 2 === 0 ? "personal" : "pending",
+        source: "user",
+        mine: true,
+      });
+      check(matchesNearbyFilter(homePin, "personal"), "personal tab keeps home pins");
+      check(matchesNearbyFilter(homePin, "all"), "home pins in all");
+      check(!matchesNearbyFilter(homePin, "gas"), "home is not gas");
+      check(homePin.kind === "home", "kind holds");
+      check(startingVisibility(homePin.kind === "home") === "personal" || startingVisibility(false) === "pending", "visibility from kind");
+
+      const miles = RADIUS_MILES[i % RADIUS_MILES.length];
+      const nearby = pinsInRadius([homePin, room({ id: `far-${i}`, lat: origin.lat + 1, lng: origin.lng, kind: "gas" })], origin, miles);
+      check(nearby.some((pin) => pin.id === `home-${i}`), "home pin inside radius");
+      check(crowdedTapAction(1, 16) === "select", "lonely pin selects");
+      check(tapIsPan(i % 30) === i % 30 > 16, "pan vs tap");
+      check(snapListSheet("mid", i % 2 === 0 ? -80 : 80) === (i % 2 === 0 ? "hidden" : "tall"), "sheet snap");
+      const hours = hoursStatus(
+        { hoursOpen: "08:00", hoursClose: "20:00", daysOpen: [] },
+        new Date("2026-09-18T12:00:00"),
+      );
+      check(hours.state === "open", "midday open");
+      check(shouldInstantMapJump(usOverviewView(), locatedStartView(origin, 2), 1_000_000), "big jump is instant");
+      check(!shouldInstantMapJump({ ...origin, zoom: 13 }, { ...origin, zoom: 13.1 }, 40), "tiny move can ease");
+    }
+
+    check(n > 10_000, `seamless checks ${n}`);
   });
 });
 

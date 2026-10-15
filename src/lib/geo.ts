@@ -1,11 +1,16 @@
 const EARTH_M = 6371000;
 
-export function haversineMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+export function haversineMeters(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number },
+): number {
   const dLat = toRad(b.lat - a.lat);
   const dLng = toRad(b.lng - a.lng);
   const lat1 = toRad(a.lat);
   const lat2 = toRad(b.lat);
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
   return 2 * EARTH_M * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
@@ -26,4 +31,43 @@ export function formatWalk(seconds: number): string {
   const hours = Math.floor(mins / 60);
   const rest = mins % 60;
   return rest ? `${hours} hr ${rest} min walk` : `${hours} hr walk`;
+}
+
+export function bboxSpanMeters(bounds: {
+  south: number;
+  west: number;
+  north: number;
+  east: number;
+}): number {
+  return haversineMeters(
+    { lat: bounds.south, lng: bounds.west },
+    { lat: bounds.north, lng: bounds.east },
+  );
+}
+
+export function roundBounds(bounds: {
+  south: number;
+  west: number;
+  north: number;
+  east: number;
+}) {
+  const q = (n: number) => Math.round(n * 40) / 40;
+  return {
+    south: q(bounds.south),
+    west: q(bounds.west),
+    north: q(bounds.north),
+    east: q(bounds.east),
+  };
+}
+
+export function directionsUrl(
+  dest: { lat: number; lng: number },
+  origin?: { lat: number; lng: number } | null,
+): { google: string; apple: string } {
+  const d = `${dest.lat},${dest.lng}`;
+  const originQ = origin ? `&origin=${origin.lat},${origin.lng}` : "";
+  return {
+    google: `https://www.google.com/maps/dir/?api=1&destination=${d}${originQ}&travelmode=walking`,
+    apple: `https://maps.apple.com/?daddr=${d}&dirflg=w`,
+  };
 }
