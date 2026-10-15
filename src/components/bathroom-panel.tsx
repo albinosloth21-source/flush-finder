@@ -3,6 +3,7 @@ import { formatDistanceToNowStrict } from "date-fns";
 import {
   Accessibility,
   ChevronLeft,
+  Clock,
   Footprints,
   LoaderCircle,
   MapPinOff,
@@ -32,21 +33,31 @@ import {
   ratingCaption,
   type RatingAspectKey,
 } from "@/lib/labels";
+import { formatOperatingHours, hoursFromPin, hoursStatus, reportHours, weekSchedule, WEEK_DAYS, type WeekDay } from "@/lib/search-radius";
 import type { AccessType, Bathroom, Review, VenueKind, WalkingRoute } from "@/lib/types";
 import { CIVIL_COPY, isCivil } from "@/lib/moderation";
 import { reviewPoints } from "@/lib/badges";
 import { overallScore } from "@/lib/toilet-score";
 import { cn } from "@/lib/utils";
 
-export type NearbyFilter = "all" | "toilet" | "restaurant" | "gas" | "grocery" | "park" | "rated";
+export type NearbyFilter =
+  | "all"
+  | "personal"
+  | "restaurant"
+  | "gas"
+  | "grocery"
+  | "park"
+  | "business"
+  | "rated";
 
 const FILTERS: { id: NearbyFilter; label: string }[] = [
   { id: "all", label: "All" },
-  { id: "toilet", label: "Restrooms" },
+  { id: "personal", label: "Personal restrooms" },
   { id: "restaurant", label: "Food" },
   { id: "gas", label: "Gas" },
   { id: "grocery", label: "Grocery" },
   { id: "park", label: "Parks" },
+  { id: "business", label: "Shops" },
   { id: "rated", label: "Rated" },
 ];
 
@@ -130,7 +141,8 @@ export function NearbyList({
   onFilter,
   onSelect,
   loading,
-  zoomLocked,
+  radiusMiles,
+  zoomedOut,
 }: {
   bathrooms: Bathroom[];
   origin: { lat: number; lng: number };
@@ -138,14 +150,22 @@ export function NearbyList({
   onFilter: (next: NearbyFilter) => void;
   onSelect: (id: string) => void;
   loading: boolean;
-  zoomLocked?: boolean;
+  radiusMiles?: number;
+  zoomedOut?: boolean;
 }) {
+  const noun = bathrooms.length === 1 ? "place" : "places";
+  const range =
+    radiusMiles != null
+      ? ` within ${radiusMiles} ${radiusMiles === 1 ? "mile" : "miles"}`
+      : "";
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <p className="text-[0.6875rem] font-medium tracking-[0.16em] text-muted uppercase">Nearby</p>
-      <h2 className="font-display text-lg font-semibold tracking-tight">
-        {zoomLocked ? "Zoom in to see places" : `${bathrooms.length} ${bathrooms.length === 1 ? "place" : "places"}`}
-      </h2>
+      <div data-ff-sheet-handle className="shrink-0 touch-none">
+        <p className="text-[0.6875rem] font-medium tracking-[0.16em] text-muted uppercase">Nearby</p>
+        <h2 className="font-display text-lg font-semibold tracking-tight">
+          {`${bathrooms.length} ${noun}${range}`}
+        </h2>
+      </div>
       {loading ? (
         <p className="sr-only" aria-live="polite">
           Loading restrooms
@@ -156,17 +176,24 @@ export function NearbyList({
           <button
             key={item.id}
             type="button"
+            data-kind={item.id}
             onClick={() => onFilter(item.id)}
-            className={cn(
-              "h-8 shrink-0 rounded-full px-3 text-[0.75rem] font-medium",
-              filter === item.id ? "bg-primary text-primary-foreground" : "bg-foreground/6 text-foreground",
-            )}
+            className={cn("ff-filter", filter === item.id && "is-on")}
           >
             {item.label}
           </button>
         ))}
       </div>
       <ul className="mt-2 min-h-0 flex-1 space-y-1 overflow-y-auto">
+        {bathrooms.length === 0 && !loading ? (
+          <li className="px-1 py-3 text-sm text-muted">
+            {zoomedOut
+              ? "Share your location or zoom into your state to see restrooms nearby."
+              : filter === "park"
+                ? "No park restrooms pinned yet. Drop a pin on the actual stall — not the park entrance — to earn points."
+                : "No restrooms in this view yet."}
+          </li>
+        ) : null}
         {bathrooms.map((room) => (
           <li key={room.id}>
             <button
@@ -178,7 +205,7 @@ export function NearbyList({
                 <p className="truncate font-medium">{room.name}</p>
                 <p className="text-[0.75rem] text-muted">{ratingCaption(room.avgRating, room.reviewCount)}</p>
                 <div className="mt-1 flex flex-wrap gap-1">
-                  <Badge variant="muted">{VENUE_LABELS[room.kind]}</Badge>
+                  <span className={cn("ff-kind-chip", `is-${room.kind}`)}>{VENUE_LABELS[room.kind]}</span>
                   <Badge variant={room.customersOnly || room.accessType === "customers" ? "warn" : "outline"}>
                     Customers only
                   </Badge>
@@ -194,6 +221,75 @@ export function NearbyList({
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+function HoursPanel({
+  bathroom,
+  reviews,
+  canReview,
+  reviewHint,
+  onReview,
+}: {
+  bathroom: Bathroom;
+  reviews: Review[];
+  canReview: boolean;
+  reviewHint: "guest" | "confirm" | "ready" | "pending";
+  onReview: () => void;
+}) {
+  const hours = reportHours(bathroom, reviews);
+  const status = hoursStatus(hours);
+  const schedule = hours ? weekSchedule(hours) : [];
+  return (
+    <div className="mt-4" data-ff-hours-panel>
+      <div
+        className={cn(
+          "rounded-[var(--radius-lg)] px-3.5 py-3",
+          status.state === "open" ? "bg-good/12" : status.state === "closed" ? "bg-foreground/6" : "bg-foreground/4",
+        )}
+      >
+        <p
+          className={cn(
+            "font-display text-lg font-semibold",
+            status.state === "open" ? "text-good" : "text-foreground",
+          )}
+        >
+          {status.headline}
+        </p>
+        <p className="mt-0.5 text-sm text-muted">{status.detail}</p>
+      </div>
+      {schedule.length ? (
+        <ul className="mt-3 divide-y divide-border rounded-[var(--radius-lg)] bg-foreground/4 px-3.5">
+          {schedule.map((row) => (
+            <li key={row.day} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+              <span className="font-medium">{row.day}</span>
+              <span className={row.closed ? "text-muted" : "text-foreground"}>{row.label}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-3 rounded-[var(--radius-lg)] bg-foreground/4 p-3.5 text-sm text-muted">
+          Nobody has posted hours for this restroom yet.
+        </p>
+      )}
+      <p className="mt-3 text-[0.75rem] text-subtle">
+        Hours come from reviews. If the door sign changed, add a new review.
+      </p>
+      {reviewHint === "pending" ? (
+        <div className="mt-3 h-10 w-40 animate-pulse rounded-md bg-foreground/8" />
+      ) : canReview ? (
+        <Button className="mt-3" onClick={onReview}>
+          <Clock className="size-4" />
+          Add hours in a review
+        </Button>
+      ) : (
+        <Button className="mt-3" asChild>
+          <a href={reviewHint === "confirm" ? "/confirm-email" : "/login"}>
+            Sign in to add hours
+          </a>
+        </Button>
+      )}
     </div>
   );
 }
@@ -233,7 +329,11 @@ export function BathroomDetail({
   const overall = overallScore(bathroom.avgRating, shownReviews);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [reason, setReason] = useState<(typeof REMOVE_REASONS)[number]["value"]>("gone");
+  const [detailTab, setDetailTab] = useState<"reviews" | "hours">("reviews");
   const canDeleteMine = bathroom.mine && bathroom.source === "user";
+  const hoursLabel = hoursFromPin(bathroom, shownReviews);
+  const hours = reportHours(bathroom, shownReviews);
+  const status = hoursStatus(hours);
   return (
     <div className="pb-8">
       <div className="flex items-start justify-between gap-3">
@@ -279,6 +379,15 @@ export function BathroomDetail({
 
       <div className="mt-3 pt-1 pb-2">
         {bathroom.address ? <p className="text-sm text-muted">{bathroom.address}</p> : null}
+        {hoursLabel ? (
+          <p className="mt-1.5 flex items-center gap-1.5 text-sm">
+            <Clock className="size-3.5 shrink-0 text-muted" />
+            <span className={status.state === "open" ? "text-good" : status.state === "closed" ? "text-muted" : ""}>
+              {status.state === "open" ? "Open now" : status.state === "closed" ? "Closed now" : hoursLabel}
+            </span>
+            {status.state !== "unknown" ? <span className="text-muted">· {hoursLabel}</span> : null}
+          </p>
+        ) : null}
         <p className="mt-1 text-[0.75rem] text-subtle">{VENUE_HINTS[bathroom.kind]}</p>
 
         <div className="mt-3 flex flex-wrap gap-1.5">
@@ -324,7 +433,46 @@ export function BathroomDetail({
 
         <Separator className="my-4" />
 
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex gap-1.5" role="tablist" aria-label="Restroom details">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={detailTab === "reviews"}
+            data-ff-detail-tab="reviews"
+            className={cn(
+              "h-11 rounded-full px-4 text-sm font-semibold",
+              detailTab === "reviews" ? "bg-foreground text-surface" : "bg-foreground/6 text-foreground",
+            )}
+            onClick={() => setDetailTab("reviews")}
+          >
+            Reviews
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={detailTab === "hours"}
+            data-ff-hours-tab
+            className={cn(
+              "h-11 rounded-full px-4 text-sm font-semibold",
+              detailTab === "hours" ? "bg-foreground text-surface" : "bg-foreground/6 text-foreground",
+            )}
+            onClick={() => setDetailTab("hours")}
+          >
+            Hours
+          </button>
+        </div>
+
+        {detailTab === "hours" ? (
+          <HoursPanel
+            bathroom={bathroom}
+            reviews={shownReviews}
+            canReview={canReview}
+            reviewHint={reviewHint}
+            onReview={onReview}
+          />
+        ) : (
+          <>
+        <div className="mt-4 flex items-center justify-between gap-3">
           <h3 className="font-display text-lg font-semibold">Reviews</h3>
           {reviewHint === "pending" ? (
             <div className="h-9 w-28 animate-pulse rounded-md bg-foreground/8" />
@@ -371,6 +519,12 @@ export function BathroomDetail({
                   <p className="mt-1 text-[0.6875rem] font-medium tracking-wide text-primary">{review.reviewerTitle}</p>
                 ) : null}
                 <ReviewAspects review={review} />
+                {formatOperatingHours(review) ? (
+                  <p className="mt-1.5 flex items-center gap-1.5 text-[0.75rem] text-muted">
+                    <Clock className="size-3 shrink-0" />
+                    {formatOperatingHours(review)}
+                  </p>
+                ) : null}
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   <AccessChip on={review.accessType === "customers"}>Customers only</AccessChip>
                   <AccessChip on={review.askForKey} icon={<KeyRound className="size-3" />}>
@@ -432,6 +586,8 @@ export function BathroomDetail({
             </a>
           </Button>
         )}
+          </>
+        )}
       </div>
     </div>
   );
@@ -457,6 +613,9 @@ export function ReviewForm({
     accessType: Exclude<AccessType, "unknown">;
     askForKey: boolean;
     critique: string;
+    hoursOpen?: string;
+    hoursClose?: string;
+    daysOpen?: string[];
   }) => void;
   onRemove?: () => void;
   removing?: boolean;
@@ -469,6 +628,11 @@ export function ReviewForm({
   const [customersOnly, setCustomersOnly] = useState(false);
   const [askForKey, setAskForKey] = useState(false);
   const [critique, setCritique] = useState("");
+  const [hoursOpen, setHoursOpen] = useState("");
+  const [hoursClose, setHoursClose] = useState("");
+  const [daysOpen, setDaysOpen] = useState<WeekDay[]>([]);
+  const [allDay, setAllDay] = useState(false);
+  const [formTab, setFormTab] = useState<"ratings" | "hours">("ratings");
   const civil = isCivil(critique);
   const accessType: Exclude<AccessType, "unknown"> = customersOnly ? "customers" : "public";
   const points = reviewPoints({
@@ -498,12 +662,42 @@ export function ReviewForm({
           accessType,
           askForKey,
           critique: critique.trim(),
+          hoursOpen: allDay ? "00:00" : hoursOpen || undefined,
+          hoursClose: allDay ? "24:00" : hoursClose || undefined,
+          daysOpen: allDay ? [...WEEK_DAYS] : daysOpen.length ? daysOpen : undefined,
         });
       }}
     >
       <BackButton onClick={onBack}>Back</BackButton>
       <h2 className="font-display text-2xl font-semibold tracking-tight">Review {bathroom.name}</h2>
       <p className="mt-1 text-sm text-muted">Rate in toilets. 5 is pristine, 1 is a last resort.</p>
+      <div className="mt-4 flex gap-1.5" role="tablist" aria-label="Review sections">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={formTab === "ratings"}
+          className={cn(
+            "h-11 rounded-full px-4 text-sm font-semibold",
+            formTab === "ratings" ? "bg-foreground text-surface" : "bg-foreground/6 text-foreground",
+          )}
+          onClick={() => setFormTab("ratings")}
+        >
+          Ratings
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={formTab === "hours"}
+          data-ff-review-hours
+          className={cn(
+            "h-11 rounded-full px-4 text-sm font-semibold",
+            formTab === "hours" ? "bg-foreground text-surface" : "bg-foreground/6 text-foreground",
+          )}
+          onClick={() => setFormTab("hours")}
+        >
+          Hours
+        </button>
+      </div>
       {onRemove ? (
         <Button
           type="button"
@@ -519,6 +713,8 @@ export function ReviewForm({
       ) : null}
 
       <div className="mt-4 space-y-4">
+        {formTab === "ratings" ? (
+          <>
         <div>
           <Label>Overall</Label>
           <ToiletRating value={rating} size="lg" interactive onChange={setRating} className="mt-1" />
@@ -547,7 +743,7 @@ export function ReviewForm({
               type="button"
               onClick={() => setCustomersOnly((on) => !on)}
               className={cn(
-                "inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-sm",
+                "inline-flex h-11 items-center gap-1.5 rounded-full px-3 text-sm",
                 customersOnly ? "bg-primary text-primary-foreground" : "bg-foreground/6",
               )}
             >
@@ -558,7 +754,7 @@ export function ReviewForm({
               type="button"
               onClick={() => setAskForKey((on) => !on)}
               className={cn(
-                "inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-sm",
+                "inline-flex h-11 items-center gap-1.5 rounded-full px-3 text-sm",
                 askForKey ? "bg-primary text-primary-foreground" : "bg-foreground/6",
               )}
             >
@@ -579,6 +775,90 @@ export function ReviewForm({
           />
           {!civil ? <p className="mt-1 text-[0.75rem] text-danger">{CIVIL_COPY}</p> : null}
         </div>
+          </>
+        ) : (
+        <fieldset data-ff-review-hours-fields>
+          <legend className="font-display text-lg font-semibold">Operating hours</legend>
+          <p className="mt-1 text-sm text-muted">
+            Optional. Hours this restroom is actually open, not just the building.
+          </p>
+          <button
+            type="button"
+            className={cn(
+              "mt-3 inline-flex h-11 items-center rounded-full px-4 text-sm font-semibold",
+              allDay ? "bg-primary text-primary-foreground" : "bg-foreground/6",
+            )}
+            onClick={() => {
+              setAllDay((on) => {
+                const next = !on;
+                if (next) {
+                  setHoursOpen("00:00");
+                  setHoursClose("24:00");
+                  setDaysOpen([...WEEK_DAYS]);
+                } else {
+                  setHoursOpen("");
+                  setHoursClose("");
+                }
+                return next;
+              });
+            }}
+          >
+            Open 24 hours
+          </button>
+          {allDay ? (
+            <p className="mt-3 text-sm text-muted">This stall is listed as always open.</p>
+          ) : (
+            <>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <div>
+              <Label htmlFor="hours-open">Opens</Label>
+              <Input
+                id="hours-open"
+                type="time"
+                value={hoursOpen === "00:00" && hoursClose === "24:00" ? "" : hoursOpen}
+                onChange={(e) => setHoursOpen(e.target.value)}
+                className="mt-1 h-11"
+              />
+            </div>
+            <div>
+              <Label htmlFor="hours-close">Closes</Label>
+              <Input
+                id="hours-close"
+                type="time"
+                value={hoursClose === "24:00" ? "" : hoursClose}
+                onChange={(e) => setHoursClose(e.target.value)}
+                className="mt-1 h-11"
+              />
+            </div>
+          </div>
+          <p className="mt-3 text-sm font-medium">Days open</p>
+          <p className="mt-0.5 text-[0.75rem] text-muted">Leave blank if it is the same every day.</p>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {WEEK_DAYS.map((day) => {
+              const on = daysOpen.includes(day);
+              return (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() =>
+                    setDaysOpen((current) =>
+                      current.includes(day) ? current.filter((item) => item !== day) : [...current, day],
+                    )
+                  }
+                  className={cn(
+                    "inline-flex h-11 min-w-11 items-center justify-center rounded-full px-3 text-sm",
+                    on ? "bg-primary text-primary-foreground" : "bg-foreground/6",
+                  )}
+                >
+                  {day}
+                </button>
+              );
+            })}
+          </div>
+            </>
+          )}
+        </fieldset>
+        )}
       </div>
       <p className="mt-3 text-[0.75rem] text-muted">This review earns {points} pts toward titles.</p>
       <Button type="submit" className="mt-4" disabled={busy || !civil}>
@@ -656,16 +936,27 @@ export function AddBathroomForm({
               <button
                 key={item}
                 type="button"
-                onClick={() => setKind(item)}
-                className={cn(
-                  "h-9 rounded-full px-3 text-sm",
-                  kind === item ? "bg-primary text-primary-foreground" : "bg-foreground/6",
-                )}
+                data-kind={item}
+                onClick={() => {
+                  setKind(item);
+                  if (item === "home") setPersonal(true);
+                }}
+                className={cn("ff-filter", kind === item && "is-on")}
               >
                 {VENUE_LABELS[item]}
               </button>
             ))}
           </div>
+          {kind === "park" ? (
+            <p className="mt-2 text-[0.75rem] text-subtle">
+              Pin the stall itself — park entrances are not restrooms.
+            </p>
+          ) : null}
+          {kind === "home" ? (
+            <p className="mt-2 text-[0.75rem] text-subtle">
+              Personal restrooms stay on your map unless you switch them to public use.
+            </p>
+          ) : null}
         </fieldset>
         <fieldset>
           <legend className="text-sm font-medium">Access</legend>

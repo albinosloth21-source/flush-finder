@@ -1,6 +1,6 @@
 import { lazy, Suspense, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { LocateFixed, LoaderCircle, Plus, Search, X } from "lucide-react";
+import { LocateFixed, LoaderCircle, Plus, Search, X, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import {
   AddBathroomForm,
@@ -27,15 +27,33 @@ import {
   getAddHold,
   deleteMyPin,
 } from "@/lib/bathrooms";
-import { getDeviceLocation } from "@/lib/native";
+import { getDeviceLocation, readLocationPermission } from "@/lib/native";
 import { composeMapPins, dropMinePin, keepMinePins, resolveOpenPin, reviewSheetOpen } from "@/lib/map-session";
 import { loadPoiTiles } from "@/lib/poi-tiles";
 import { ADD_SPAM_COPY } from "@/lib/pin-policy";
 import { getReviewer } from "@/lib/reviewer";
 import { usePersistentUser } from "@/lib/session-keep";
-import { DEFAULT_CENTER, DEFAULT_ZOOM, FEATURED_PLACES, PIN_MIN_ZOOM } from "@/lib/constants";
-import { boundsFromView, readSavedMapView, viewFromBounds, writeSavedMapView } from "@/lib/map-view";
+import { FEATURED_PLACES } from "@/lib/constants";
+import { boundsFromView, viewFromBounds, writeSavedMapView } from "@/lib/map-view";
 import { directionsUrl, haversineMeters, roundBounds } from "@/lib/geo";
+import {
+  DEFAULT_RADIUS_MILES,
+  RADIUS_MILES,
+  boundsForRadius,
+  matchesNearbyFilter,
+  pinsInRadius,
+  zoomForMiles,
+  type RadiusMiles,
+} from "@/lib/search-radius";
+import {
+  locatedStartView,
+  shouldAskForLocation,
+  shouldAutoLocate,
+  shouldFitRadiusOnMap,
+  usOverviewView,
+  type LocationChoice,
+} from "@/lib/map-start";
+import { snapListSheet, snapReviewSheet, listSheetAfterPinTap, tapRevealsHiddenList, type ListSheet } from "@/lib/map-sheet";
 import type { Bathroom, MapBounds, PlaceHit, WalkingRoute } from "@/lib/types";
 import { CIVIL_COPY, isCivilError } from "@/lib/moderation";
 import { cn } from "@/lib/utils";
@@ -45,21 +63,41 @@ const MapCanvas = lazy(() => import("@/components/map-canvas"));
 
 type View = "list" | "detail" | "review" | "add";
 
+const LOCATION_CHOICE_KEY = "ff-location-choice";
+
+function readLocationChoice(): LocationChoice | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const value = window.sessionStorage.getItem(LOCATION_CHOICE_KEY);
+    if (value === "share" || value === "browse") return value;
+  } catch {
+    /* private mode */
+  }
+  return null;
+}
+
+function writeLocationChoice(choice: LocationChoice) {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(LOCATION_CHOICE_KEY, choice);
+  } catch {
+    /* private mode */
+  }
+}
+
 export function FinderApp() {
   const queryClient = useQueryClient();
-  const [bounds, setBounds] = useState<MapBounds | null>(() =>
-    boundsFromView({ ...DEFAULT_CENTER, zoom: DEFAULT_ZOOM }),
-  );
+  const [bounds, setBounds] = useState<MapBounds | null>(() => boundsFromView(usOverviewView()));
   const [selected, setSelected] = useState<Bathroom | null>(null);
   const [view, setView] = useState<View>("list");
   const [filter, setFilter] = useState<NearbyFilter>("all");
+  const [radiusMiles, setRadiusMiles] = useState<RadiusMiles>(DEFAULT_RADIUS_MILES);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(false);
-  const [flyTo, setFlyTo] = useState<FlyTo | null>({
-    seq: 1,
-    lat: DEFAULT_CENTER.lat,
-    lng: DEFAULT_CENTER.lng,
-    zoom: DEFAULT_ZOOM,
+  const [locationPrompt, setLocationPrompt] = useState(false);
+  const [flyTo, setFlyTo] = useState<FlyTo | null>(() => {
+    const start = usOverviewView();
+    return { seq: 1, lat: start.lat, lng: start.lng, zoom: start.zoom };
   });
   const [placing, setPlacing] = useState(false);
   const [draft, setDraft] = useState<{ lat: number; lng: number } | null>(null);
@@ -72,8 +110,13 @@ export function FinderApp() {
   const [removedOsmIds, setRemovedOsmIds] = useState<string[]>([]);
   const [addNotice, setAddNotice] = useState<null | "warn" | "hold">(null);
   const [minePins, setMinePins] = useState<Bathroom[]>([]);
+  const [listSheet, setListSheet] = useState<ListSheet>("mid");
   const persistTimer = useRef(0);
   const dragRef = useRef<{ y: number; tall: boolean } | null>(null);
+  const listDrag = useRef<{ y: number; from: ListSheet } | null>(null);
+  const [listDragY, setListDragY] = useState(0);
+  const [reviewDragY, setReviewDragY] = useState(0);
+  const boundsTicks = useRef(0);
   const { user, isPending: authPending } = usePersistentUser();
 
   const reviewerQuery = useQuery({
@@ -84,64 +127,89 @@ export function FinderApp() {
   });
 
   useEffect(() => {
-    const saved = readSavedMapView();
-    setBounds(boundsFromView(saved));
-    setFlyTo({ seq: Date.now(), lat: saved.lat, lng: saved.lng, zoom: saved.zoom });
+    let cancelled = false;
+    void (async () => {
+      const choice = readLocationChoice();
+      const permission = await readLocationPermission();
+      if (cancelled) return;
+      if (!shouldAutoLocate(permission, choice)) {
+        setLocationPrompt(shouldAskForLocation(permission, choice));
+        return;
+      }
+      setLocating(true);
+      try {
+        const next = await getDeviceLocation();
+        if (cancelled) return;
+        const start = locatedStartView(next, DEFAULT_RADIUS_MILES);
+        setUserLocation(next);
+        setBounds(boundsFromView(start));
+        setFlyTo({ seq: Date.now(), lat: start.lat, lng: start.lng, zoom: start.zoom });
+        setLocationPrompt(false);
+      } catch {
+        if (cancelled) return;
+        setLocationPrompt(shouldAskForLocation(permission, choice));
+      } finally {
+        if (!cancelled) setLocating(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   function rememberBounds(next: MapBounds) {
+    boundsTicks.current += 1;
     setBounds(next);
     if (typeof window === "undefined") return;
     window.clearTimeout(persistTimer.current);
     persistTimer.current = window.setTimeout(() => writeSavedMapView(viewFromBounds(next)), 350);
   }
 
-  const rounded = bounds ? roundBounds(bounds) : null;
-  const pinsVisible = (bounds?.zoom ?? DEFAULT_ZOOM) >= PIN_MIN_ZOOM;
-
-  useEffect(() => {
-    if (pinsVisible) return;
-    setSelected(null);
-    setView("list");
-    setPinBusy(false);
-    setDraft(null);
-    setPlacing(false);
-  }, [pinsVisible]);
+  const mapCenter = useMemo(
+    () => (bounds ? boundsCenter(bounds) : usOverviewView()),
+    [bounds],
+  );
+  const mapZoom = bounds?.zoom ?? usOverviewView().zoom;
+  const localSearch = shouldFitRadiusOnMap(mapZoom);
+  const searchBox = boundsForRadius(mapCenter, radiusMiles);
+  const rounded = roundBounds(searchBox);
 
   const bathroomsQuery = useQuery({
     queryKey: ["bathrooms", rounded],
-    queryFn: () => listBathrooms({ data: rounded! }),
-    enabled: Boolean(rounded) && pinsVisible,
+    queryFn: () => listBathrooms({ data: rounded }),
+    enabled: Boolean(rounded) && localSearch,
     staleTime: 45_000,
     placeholderData: (prev) => prev,
   });
 
   const osmQuery = useQuery({
     queryKey: ["osm-bathrooms", rounded],
-    queryFn: () => listOsmBathrooms({ data: rounded! }),
-    enabled: Boolean(rounded) && pinsVisible,
+    queryFn: () => listOsmBathrooms({ data: rounded }),
+    enabled: Boolean(rounded) && localSearch,
     staleTime: 90_000,
     placeholderData: (prev) => prev,
   });
 
   const tileQuery = useQuery({
     queryKey: ["poi-tiles", rounded],
-    queryFn: () => loadPoiTiles(rounded!),
-    enabled: Boolean(rounded) && pinsVisible,
+    queryFn: () => loadPoiTiles(rounded),
+    enabled: Boolean(rounded) && localSearch,
     staleTime: Infinity,
     placeholderData: (prev) => prev,
   });
 
   const bathrooms = useMemo(() => {
-    return composeMapPins({
-      zoom: bounds?.zoom ?? DEFAULT_ZOOM,
+    const all = composeMapPins({
+      zoom: 16,
+      minZoom: 0,
       db: bathroomsQuery.data ?? [],
       osm: [...(tileQuery.data ?? []), ...(osmQuery.data ?? [])],
       mine: minePins,
       removedIds,
       removedOsmIds,
     });
-  }, [bathroomsQuery.data, osmQuery.data, tileQuery.data, minePins, removedIds, removedOsmIds, bounds?.zoom]);
+    return pinsInRadius(all, mapCenter, radiusMiles);
+  }, [bathroomsQuery.data, osmQuery.data, tileQuery.data, minePins, removedIds, removedOsmIds, mapCenter, radiusMiles]);
   const selectedId = selected?.id ?? null;
 
   useEffect(() => {
@@ -156,14 +224,10 @@ export function FinderApp() {
     enabled: Boolean(selectedId) && (view === "detail" || view === "review"),
   });
 
-  const origin = userLocation ?? (bounds ? boundsCenter(bounds) : DEFAULT_CENTER);
+  const origin = userLocation ?? mapCenter;
 
   const filtered = useMemo(() => {
-    const list = bathrooms.filter((room) => {
-      if (filter === "rated") return room.reviewCount > 0;
-      if (filter === "all") return true;
-      return room.kind === filter;
-    });
+    const list = bathrooms.filter((room) => matchesNearbyFilter(room, filter));
     return list.sort((a, b) => haversineMeters(origin, a) - haversineMeters(origin, b));
   }, [bathrooms, filter, origin]);
 
@@ -293,27 +357,55 @@ export function FinderApp() {
     onError: () => toast.error("Could not plot a walking route"),
   });
 
+  function flyToUser(next: { lat: number; lng: number }) {
+    const start = locatedStartView(next, radiusMiles);
+    setUserLocation(next);
+    setBounds(boundsFromView(start));
+    setFlyTo({ seq: Date.now(), lat: start.lat, lng: start.lng, zoom: start.zoom });
+    setLocationPrompt(false);
+  }
+
   function locate() {
+    if (locating) return;
+    setLocationPrompt(false);
     setLocating(true);
     void getDeviceLocation()
       .then((next) => {
-        setUserLocation(next);
-        setFlyTo({ seq: Date.now(), lat: next.lat, lng: next.lng, zoom: 16 });
+        writeLocationChoice("share");
+        flyToUser(next);
         setLocating(false);
       })
       .catch(() => {
-        toast.error("Location is not available on this device.");
+        writeLocationChoice("browse");
+        toast.error("Could not read your location. Browse the United States map instead.");
         setLocating(false);
       });
+  }
+
+  function skipLocation() {
+    writeLocationChoice("browse");
+    setLocationPrompt(false);
+    const start = usOverviewView();
+    setBounds(boundsFromView(start));
+    setFlyTo({ seq: Date.now(), lat: start.lat, lng: start.lng, zoom: start.zoom });
+  }
+
+  function changeRadius(miles: RadiusMiles) {
+    setRadiusMiles(miles);
+    const zoom = bounds?.zoom ?? usOverviewView().zoom;
+    if (!shouldFitRadiusOnMap(zoom)) return;
+    const center = bounds ? boundsCenter(bounds) : usOverviewView();
+    setFlyTo({ seq: Date.now(), lat: center.lat, lng: center.lng, zoom: zoomForMiles(miles) });
   }
 
   function selectRoom(room: Bathroom | null) {
     setRoute(null);
     setSelected(room);
     setView(room ? "detail" : "list");
-    setExpanded(Boolean(room));
+    setExpanded(false);
     setPinBusy(Boolean(room));
     if (room) {
+      setListSheet(listSheetAfterPinTap());
       window.setTimeout(() => setPinBusy(false), 350);
     }
   }
@@ -340,10 +432,10 @@ export function FinderApp() {
   const sheetTall = expanded && sheetOpen;
 
   return (
-    <div className="relative h-dvh overflow-hidden bg-background">
+    <div className="relative h-dvh overflow-hidden bg-background" data-ff-start={userLocation ? "here" : "us"}>
       <Suspense fallback={<div className="h-full w-full bg-foreground/10" />}>
         <MapCanvas
-          bathrooms={pinsVisible ? bathrooms : []}
+          bathrooms={filtered}
           selectedId={selectedId}
           pinBusy={pinBusy}
           userLocation={userLocation}
@@ -351,6 +443,7 @@ export function FinderApp() {
           placing={placing}
           draft={draft}
           flyTo={flyTo}
+          radiusMiles={radiusMiles}
           onSelect={(id) => {
             if (view === "add" && draft && !id) return;
             if (!id) {
@@ -417,7 +510,8 @@ export function FinderApp() {
               size="icon"
               onClick={locate}
               disabled={locating}
-              aria-label="Use my location"
+              aria-label="Re-center to my location"
+              title="Re-center"
             >
               {locating ? <LoaderCircle className="size-4 animate-spin" /> : <LocateFixed className="size-4" />}
             </Button>
@@ -459,14 +553,45 @@ export function FinderApp() {
               ))}
             </div>
           ) : null}
+          <div className="mt-2 flex items-center gap-1.5 overflow-x-auto pb-0.5">
+            {RADIUS_MILES.map((miles) => (
+              <button
+                key={miles}
+                type="button"
+                className={cn("ff-radius-chip", radiusMiles === miles && "is-on")}
+                onClick={() => changeRadius(miles)}
+              >
+                {miles} {miles === 1 ? "mile" : "miles"}
+              </button>
+            ))}
+            <button
+              type="button"
+              className="ff-radius-chip"
+              onClick={locate}
+              disabled={locating}
+            >
+              {locating ? "Finding you" : "Re-center"}
+            </button>
+          </div>
+          {locationPrompt ? (
+            <div
+              className="ff-sheet mt-2 flex flex-wrap items-center gap-2 rounded-[var(--radius-xl)] bg-surface p-2 pl-3"
+              data-ff-location-prompt="true"
+            >
+              <p className="min-w-0 flex-1 text-sm leading-snug">
+                Start on you, or browse the United States.
+              </p>
+              <Button size="sm" onClick={locate} disabled={locating}>
+                {locating ? <LoaderCircle className="size-4 animate-spin" /> : <LocateFixed className="size-4" />}
+                Use my location
+              </Button>
+              <Button size="sm" variant="outline" onClick={skipLocation} disabled={locating}>
+                Browse the United States
+              </Button>
+            </div>
+          ) : null}
         </div>
       </header>
-
-      {!pinsVisible ? (
-        <div className="ff-sheet pointer-events-none absolute top-3 left-1/2 z-[240] flex -translate-x-1/2 items-center gap-2 rounded-full bg-surface px-4 py-2 text-sm font-medium shadow-[var(--shadow-border)]">
-          Zoom in to see restrooms
-        </div>
-      ) : null}
 
       {pinBusy ? (
         <div className="ff-sheet pointer-events-none fixed top-[22%] left-1/2 z-[300] flex -translate-x-1/2 items-center gap-2 rounded-full bg-surface px-4 py-2.5 text-sm font-medium shadow-[var(--shadow-border)]">
@@ -477,54 +602,175 @@ export function FinderApp() {
 
       <section
         className={cn(
-          "ff-list-sheet ff-sheet pointer-events-auto absolute inset-x-0 z-20 flex flex-col rounded-t-[var(--radius-2xl)] bg-surface px-[max(1rem,env(safe-area-inset-left))] pt-2 pr-[max(1rem,env(safe-area-inset-right))] pb-[max(0.75rem,env(safe-area-inset-bottom))] transition-[height,transform,opacity] duration-[var(--motion-slow)] ease-[var(--ease-smooth-out)]",
-          sheetOpen ? "pointer-events-none translate-y-8 opacity-0" : "bottom-0 h-[min(38dvh,22rem)]",
+          "ff-list-sheet ff-sheet pointer-events-auto absolute inset-x-0 z-20 flex flex-col overflow-hidden rounded-t-[var(--radius-2xl)] bg-surface px-[max(1rem,env(safe-area-inset-left))] pt-1 pr-[max(1rem,env(safe-area-inset-right))] pb-[max(0.75rem,env(safe-area-inset-bottom))]",
+          sheetOpen ? "is-away" : listSheet === "hidden" ? "is-hidden" : listSheet === "tall" ? "is-tall" : "is-mid",
+          listDragY ? "is-dragging" : "",
         )}
+        style={
+          !sheetOpen && listDragY
+            ? {
+                transform:
+                  listSheet === "hidden"
+                    ? `translateY(calc(110% + ${listDragY}px))`
+                    : `translateY(${Math.max(0, listDragY)}px)`,
+              }
+            : undefined
+        }
+        data-ff-list-sheet={listSheet}
+        onPointerDown={(event) => {
+          if (!(event.target as HTMLElement).closest("[data-ff-sheet-handle]")) return;
+          listDrag.current = { y: event.clientY, from: listSheet };
+          setListDragY(0);
+          try {
+            event.currentTarget.setPointerCapture(event.pointerId);
+          } catch {
+            /* synthetic events cannot capture */
+          }
+        }}
+        onPointerMove={(event) => {
+          const start = listDrag.current;
+          if (!start) return;
+          setListDragY(event.clientY - start.y);
+        }}
+        onPointerUp={(event) => {
+          const start = listDrag.current;
+          listDrag.current = null;
+          setListDragY(0);
+          if (!start) return;
+          const dy = start.y - event.clientY;
+          if (tapRevealsHiddenList(start.from, dy)) {
+            setListSheet("mid");
+            return;
+          }
+          setListSheet(snapListSheet(start.from, dy));
+        }}
+        onPointerCancel={() => {
+          listDrag.current = null;
+          setListDragY(0);
+        }}
       >
+        <button
+          type="button"
+          data-ff-sheet-handle
+          className="mx-auto flex h-11 w-full max-w-xs shrink-0 items-center justify-center touch-none"
+          aria-label={listSheet === "tall" ? "Slide nearby list" : "Slide nearby list down to hide"}
+        >
+          <span className="block h-1.5 w-12 rounded-full bg-foreground/18" />
+        </button>
         <NearbyList
           bathrooms={filtered}
           origin={origin}
           filter={filter}
           onFilter={setFilter}
+          radiusMiles={radiusMiles}
+          zoomedOut={!localSearch}
           onSelect={(id) => {
             const room = resolveOpenPin(id, bathrooms, selected);
             if (room) selectRoom(room);
           }}
           loading={(bathroomsQuery.isFetching || osmQuery.isFetching || tileQuery.isFetching) && bathrooms.length === 0}
-          zoomLocked={!pinsVisible}
         />
       </section>
+
+      {listSheet === "hidden" && !sheetOpen ? (
+        <div
+          data-ff-sheet-handle
+          data-ff-list-peek
+          className="ff-list-peek"
+          role="button"
+          tabIndex={0}
+          aria-label="Swipe up nearby restrooms"
+          onPointerDown={(event) => {
+            listDrag.current = { y: event.clientY, from: "hidden" };
+            setListDragY(0);
+            try {
+              event.currentTarget.setPointerCapture(event.pointerId);
+            } catch {
+              /* synthetic events cannot capture */
+            }
+          }}
+          onPointerMove={(event) => {
+            const start = listDrag.current;
+            if (!start) return;
+            setListDragY(event.clientY - start.y);
+          }}
+          onPointerUp={(event) => {
+            const start = listDrag.current;
+            listDrag.current = null;
+            setListDragY(0);
+            if (!start) return;
+            const dy = start.y - event.clientY;
+            if (tapRevealsHiddenList(start.from, dy)) {
+              setListSheet("mid");
+              return;
+            }
+            setListSheet(snapListSheet(start.from, dy));
+          }}
+          onPointerCancel={() => {
+            listDrag.current = null;
+            setListDragY(0);
+          }}
+        >
+          <span className="block h-1.5 w-12 rounded-full bg-foreground/20" />
+        </div>
+      ) : null}
 
       <section
         className={cn(
           "ff-review-sheet ff-sheet fixed inset-x-0 z-[250] flex flex-col bg-surface px-[max(1rem,env(safe-area-inset-left))] pt-1 pr-[max(1rem,env(safe-area-inset-right))] pb-[max(1rem,env(safe-area-inset-bottom))]",
           sheetOpen ? "is-open" : "",
           sheetTall ? "is-tall" : "",
+          reviewDragY > 0 ? "is-dragging" : "",
         )}
+        style={sheetOpen && reviewDragY > 0 ? { transform: `translateY(${reviewDragY}px)` } : undefined}
         onPointerDown={(event) => {
           if (!(event.target as HTMLElement).closest("[data-ff-sheet-handle]")) return;
           dragRef.current = { y: event.clientY, tall: sheetTall };
+          setReviewDragY(0);
+          try {
+            event.currentTarget.setPointerCapture(event.pointerId);
+          } catch {
+            /* synthetic events cannot capture */
+          }
+        }}
+        onPointerMove={(event) => {
+          const start = dragRef.current;
+          if (!start) return;
+          setReviewDragY(Math.max(0, event.clientY - start.y));
         }}
         onPointerUp={(event) => {
           const start = dragRef.current;
           dragRef.current = null;
+          setReviewDragY(0);
           if (!start) return;
-          const dy = start.y - event.clientY;
-          if (dy > 48) setExpanded(true);
-          if (dy < -48) {
-            if (start.tall) setExpanded(false);
-            else selectRoom(null);
-          }
+          const next = snapReviewSheet({ tall: start.tall, dy: start.y - event.clientY });
+          if (next === "tall") setExpanded(true);
+          else if (next === "mid") setExpanded(false);
+          else selectRoom(null);
+        }}
+        onPointerCancel={() => {
+          dragRef.current = null;
+          setReviewDragY(0);
         }}
       >
-        <button
-          type="button"
-          data-ff-sheet-handle
-          className="mx-auto mt-1 mb-2 h-8 w-full max-w-xs shrink-0"
-          aria-label={sheetTall ? "Pull down to shrink" : "Pull up for full screen"}
-        >
-          <span className="mx-auto block h-1.5 w-12 rounded-full bg-foreground/18" />
-        </button>
+        <div className="relative mx-auto mb-1 flex h-11 w-full shrink-0 items-center justify-center">
+          <button
+            type="button"
+            data-ff-sheet-handle
+            className="flex h-11 w-full max-w-xs items-center justify-center"
+            aria-label={sheetTall ? "Slide reviews" : "Slide reviews down to hide"}
+          >
+            <span className="block h-1.5 w-12 rounded-full bg-foreground/18" />
+          </button>
+          <button
+            type="button"
+            aria-label="Hide reviews"
+            className="absolute right-0 grid size-10 place-items-center rounded-full text-muted hover:bg-foreground/6 hover:text-foreground"
+            onClick={() => selectRoom(null)}
+          >
+            <ChevronDown className="size-5" />
+          </button>
+        </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
           {view === "add" && draft ? (
             <AddBathroomForm

@@ -200,18 +200,16 @@ export function grokPwaHeadTags(appName = DEFAULT_APP_NAME) {
   ];
 }
 
-// ---------------------------------------------------------------------------
-// MADE WITH GROK BANNER (Play Store note)
-// This is the sticker at the top of the Grok preview. It is NOT Flush Finder.
-// Do not delete this whole file.
-// Before Play Store: stop loading the URL below (extensions.js) so the pill
-// does not appear in the Misfit Software Android app. Keep everything else.
-// ---------------------------------------------------------------------------
 export const GROK_EXTENSIONS_SCRIPT_SRC = "https://grok.com/grok-app-builder/extensions.js";
 
 export function readGrokProjectId() {
   const fromProcess = typeof process !== "undefined" ? process.env?.VITE_PROJECT_ID : "";
   return String(fromProcess ?? "").trim();
+}
+
+export function readGrokExtensionsEnabled() {
+  const fromProcess = typeof process !== "undefined" ? process.env?.VITE_GROK_EXTENSIONS : "";
+  return String(fromProcess ?? "").trim() !== "0";
 }
 
 export function readXCreator() {
@@ -234,16 +232,14 @@ export function grokXCreatorHeadTags(creator = readXCreator(), creatorId = readX
   ];
 }
 
-/** Platform "Created with Grok" banner — injected into every HTML document.
- *  LOOK HERE for the Made with Grok / Remix pill.
- *  Play Store: skip calling this (or skip injecting GROK_EXTENSIONS_SCRIPT_SRC).
- */
+/** Platform "Created with Grok" banner — injected into every HTML document. */
 export function grokExtensionsHeadTags(projectId = readGrokProjectId()) {
   const id = escapeHtml(projectId);
   const tags = [];
   if (projectId) {
     tags.push(`<meta name="grok-project-id" content="${id}">`);
   }
+  if (!readGrokExtensionsEnabled()) return tags;
   tags.push(
     `<script src="${GROK_EXTENSIONS_SCRIPT_SRC}"${
       projectId ? ` data-project-id="${id}"` : ""
@@ -385,6 +381,13 @@ export function grokOgHeadTags({
   return tags;
 }
 
+function stripGrokExtensionsScript(html) {
+  return String(html).replace(
+    /<script\b[^>]*\bsrc\s*=\s*["'][^"']*\/grok-app-builder\/extensions\.js[^"']*["'][^>]*>\s*<\/script>/gi,
+    "",
+  );
+}
+
 export function stripShareMetaTags(html) {
   return String(html).replace(/<meta\b[^>]*>/gi, (tag) => {
     const attrs = [...tag.matchAll(/\b(?:property|name)\s*=\s*["']([^"']+)["']/gi)];
@@ -443,6 +446,7 @@ export function injectGrokPwaHead(html, ctx = {}) {
     documentTitle,
   );
   let next = stripShareMetaTags(html);
+  if (!readGrokExtensionsEnabled()) next = stripGrokExtensionsScript(next);
 
   const missing = grokPwaHeadTags(appName)
     .filter(([key]) => {
@@ -457,7 +461,7 @@ export function injectGrokPwaHead(html, ctx = {}) {
     grokOgHeadTags({ host, appName, site, documentTitle, cwd }).join(""),
   );
 
-  if (!next.includes("/grok-app-builder/extensions.js")) {
+  if (readGrokExtensionsEnabled() && !next.includes("/grok-app-builder/extensions.js")) {
     missing.push(...grokExtensionsHeadTags(projectId));
   } else if (projectId && !next.includes('name="grok-project-id"')) {
     missing.push(`<meta name="grok-project-id" content="${escapeHtml(projectId)}">`);
