@@ -74,8 +74,8 @@ export function PrivacyPolicyText() {
             advertising partners to provide targeted in-app promotions.
           </li>
           <li>
-            By default, upon downloading the App, users aged 16 and older are opted-in to this data
-            optimization.
+            This is off by default. We only sell or share this data if you turn on “Sell my data &
+            personalized ads” in Account → Privacy.
           </li>
         </ul>
       </section>

@@ -361,9 +361,9 @@ describe("Flush Finder 10,000 functional checks", () => {
     check(formatToiletScore(4) === "4 of 5 toilets", "caption 4");
     check(formatToiletScore(3.5) === "3.5 of 5 toilets", "caption 3.5");
     check(formatToiletScore(null) === "Unrated", "caption unrated");
-    check(isSaleAndAdsAllowed(DEFAULT_PRIVACY_CHOICES) === true, "sale on by default");
+    check(isSaleAndAdsAllowed(DEFAULT_PRIVACY_CHOICES) === false, "sale off by default");
     check(isSaleAndAdsAllowed(normalizePrivacyChoices({ allowSaleAndAds: false })) === false, "opt out blocks sale");
-    check(normalizePrivacyChoices({}).allowSaleAndAds === true, "missing choice defaults on");
+    check(normalizePrivacyChoices({}).allowSaleAndAds === false, "missing choice defaults off");
     check(reviewPoints({ rating: 5, critique: "Clean stall" }) === 12, "rating plus critique");
     check(
       reviewPoints({
@@ -966,7 +966,7 @@ describe("Flush Finder 10,000 smoothness checks", () => {
     check(parseAllowFlag(true) === true, "bool true");
     check(mergePrivacyChoices({ allowSaleAndAds: false }, { allowSaleAndAds: true }).allowSaleAndAds === false, "opt-out wins");
     check(mergePrivacyChoices({ allowSaleAndAds: true }, { allowSaleAndAds: false }).allowSaleAndAds === false, "remote opt-out wins");
-    check(isSaleAndAdsAllowed(DEFAULT_PRIVACY_CHOICES), "default allows sale");
+    check(!isSaleAndAdsAllowed(DEFAULT_PRIVACY_CHOICES), "default blocks sale");
     check(formatToiletScore(4.04) === "4 of 5 toilets", "4.04 captions as 4");
     check(formatToiletScore(3.46) === "3.5 of 5 toilets", "3.46 captions as 3.5");
     check(toiletFill(4, 5) === 0 && toiletFill(4, 4) === 1, "four does not light five");
@@ -1722,5 +1722,33 @@ describe("location failures", () => {
     assert.equal(parseManualSpot("not json"), null);
     assert.equal(parseManualSpot('{"lat":200,"lng":0}'), null);
     assert.equal(parseManualSpot('{"lat":"1","lng":2}'), null);
+  });
+});
+
+import {
+  mergePrivacyChoices as mergeChoices,
+  normalizePrivacyChoices as normChoices,
+} from "./privacy-choices.ts";
+
+describe("sell my data & personalized ads defaults off", () => {
+  it("starts off and needs an explicit yes", () => {
+    assert.equal(DEFAULT_PRIVACY_CHOICES.allowSaleAndAds, false);
+    for (const v of [undefined, null, "", "maybe", 2, {}]) assert.equal(parseAllowFlag(v), false);
+    for (const v of [true, 1, "1", "t", "true", "y"]) assert.equal(parseAllowFlag(v), true);
+    assert.equal(normChoices(null).allowSaleAndAds, false);
+    assert.equal(normChoices({ allowSaleAndAds: true }).allowSaleAndAds, true);
+  });
+
+  it("keeps an explicit opt-in and lets any opt-out win", () => {
+    assert.equal(mergeChoices({ allowSaleAndAds: true }, null).allowSaleAndAds, true);
+    assert.equal(mergeChoices({ allowSaleAndAds: true }, { allowSaleAndAds: true }).allowSaleAndAds, true);
+    assert.equal(mergeChoices({ allowSaleAndAds: true }, { allowSaleAndAds: false }).allowSaleAndAds, false);
+    assert.equal(mergeChoices(DEFAULT_PRIVACY_CHOICES, null).allowSaleAndAds, false);
+  });
+
+  it("new profiles default off in the database", () => {
+    const sql = readFileSync(new URL("../../migrations/0019_privacy_default_off.sql", import.meta.url), "utf8");
+    assert.match(sql, /set default false/);
+    assert.doesNotMatch(sql, /^\s*update\s/im);
   });
 });
