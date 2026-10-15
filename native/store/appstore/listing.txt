@@ -1,0 +1,79 @@
+Flush Finder — Apple App Store listing
+
+App name: Flush Finder
+Subtitle (30 characters max): Find a restroom nearby
+Bundle ID: com.flushfinder.app
+SKU: flush-finder
+Primary language: English (US)
+Category: Travel (Navigation as secondary)
+Age rating: 16+ (user-generated reviews; not directed at children)
+Contact email: MisfitSoftwareSupport@gmail.com
+Privacy policy: https://albinosloth21-source.github.io/flush-finder/
+Support URL: https://albinosloth21-source.github.io/flush-finder/
+Marketing URL: https://albinosloth21-source.github.io/flush-finder/
+Copyright: 2026 Misfit Software
+
+Promotional text (170 characters, optional):
+Open the map, pick a stall, and walk. Guests can browse. Verified reviews earn points.
+
+Description (4000 characters max):
+Flush Finder helps you find a restroom before you stall.
+
+Open a satellite map, zoom in, and tap pins at gas stations, grocery stores, restaurants, parks, and public stalls. Each pin shows an overall 1-to-5 toilet rating, optional notes like Customers only or Ask for key, and written reviews from verified accounts.
+
+Guests can browse the map and read reviews. Creating an account and confirming email is required to rate, write a critique, or add a new restroom. New user pins stay personal until enough other accounts add the same public restroom nearby.
+
+Earn points for verified reviews and spend them on bathroom-pun titles in your account.
+
+Location is used on your iPhone to show nearby stalls and walking directions. It is not stored as a travel history. We may sell or share personal information and use it for personalized ads. Turn that off anytime in Account → Privacy.
+
+Keywords (100 characters, comma-separated):
+restroom,bathroom,toilet,map,travel,gas station,grocery,park,walk,finder
+
+What's New (1.0):
+First iPhone release of Flush Finder from Misfit Software. Map nearby restrooms, rate stalls, and walk there.
+
+App Privacy (App Store Connect nutrition labels):
+Data used to track you: None (no App Tracking Transparency / IDFA)
+Data linked to you (if they create an account):
+- Email, Name, User ID — App Functionality
+- User Content (reviews, added restrooms) — App Functionality
+Data not linked to you:
+- Precise Location — App Functionality (nearby map and walking directions; not a travel history)
+Data may be sold or used for ads if the user leaves Account → Privacy “sell my data” on. Declare that in App Store Connect to match the privacy policy. Users can request deletion at MisfitSoftwareSupport@gmail.com.
+
+Export compliance:
+ITSAppUsesNonExemptEncryption is false. Choose “No” for encryption questions (HTTPS only).
+
+iPhone permissions users see:
+- Location While Using — nearby restrooms and walking directions
+- (No camera, photos, microphone, tracking, or background location)
+
+Required screenshots:
+Because the iPhone app also runs on iPad, App Store Connect asks for both:
+- iPhone 6.7" display: 2–8 shots (map with pins, review sheet, titles, privacy)
+- iPad 13" display: 2–8 shots of the same screens
+Take them from an iPhone / iPad simulator in Xcode after a local run.
+
+App icon:
+ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png (1024×1024)
+
+How the iPhone app is built (Capacitor):
+The iPhone app is a native iOS shell (com.flushfinder.app) that opens Flush Finder in a secure HTTPS WebView, with native location, splash, and status bar — the same approach as the Android wrap.
+
+You still need:
+1. A published web app URL (Update / republish Flush Finder first)
+2. A Mac with Xcode
+3. An Apple Developer Program membership (paid, yearly)
+4. An App Store Connect listing for Flush Finder
+
+On a Mac, after the web app is live:
+
+  export CAPACITOR_SERVER_URL="https://YOUR-PUBLISHED-APP"
+  npx cap sync ios
+  Open ios/App/App.xcodeproj in Xcode
+  Select a Development Team to sign com.flushfinder.app
+  Product → Archive → Distribute App → App Store Connect
+
+version is 1.0, build is 1 for the first listing.
+Do not share your Apple signing certificates or App Store Connect password.
