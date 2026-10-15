@@ -153,6 +153,7 @@ const STATS_JOIN = `
            bool_or(coalesce(ask_for_key, false)) as ask_for_key,
            count(*) filter (where access_type = 'customers')::int as customers_reviews
     from reviews
+    where coalesce(moderation_status, 'visible') in ('visible', 'approved')
     group by bathroom_id
   ) s on s.bathroom_id = b.id
 `;
@@ -283,7 +284,7 @@ export const getReviews = createServerFn({ method: "GET" })
     const rows = await sql.query<ReviewRow>(
       `select ${REVIEW_SELECT}
        from reviews
-       where bathroom_id = $1
+       where bathroom_id = $1 and coalesce(moderation_status, 'visible') in ('visible', 'approved')
        order by created_at desc
        limit 50`,
       [data.bathroomId],
@@ -589,7 +590,7 @@ export const addReview = createServerFn({ method: "POST" })
     );
     const reviews = await sql.query<ReviewRow>(
       `select ${REVIEW_SELECT}
-       from reviews where bathroom_id = $1
+       from reviews where bathroom_id = $1 and coalesce(moderation_status, 'visible') in ('visible', 'approved')
        order by created_at desc limit 50`,
       [bathroomId],
     );

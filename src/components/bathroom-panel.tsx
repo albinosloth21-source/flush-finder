@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { ToiletRating } from "@/components/toilet-rating";
+import { ReportReviewButton } from "@/components/report-review";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -532,6 +533,7 @@ export function BathroomDetail({
                   </AccessChip>
                 </div>
                 {review.critique ? <p className="mt-2 text-base leading-relaxed">{review.critique}</p> : null}
+                {canReview ? <ReportReviewButton reviewId={review.id} /> : null}
               </li>
             ))
           )}
