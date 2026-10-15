@@ -4,7 +4,11 @@ export const SUPPORT_EMAIL = "MisfitSoftwareSupport@gmail.com";
 export const OPERATOR_NAME = "Misfit Software";
 
 export const DEFAULT_CENTER = { lat: 32.33102, lng: -96.122 };
-export const DEFAULT_ZOOM = 15;
+export const DEFAULT_ZOOM = 13;
+/** Geographic center of the contiguous United States — used when location is declined. */
+export const US_CENTER = { lat: 39.8283, lng: -98.5795 };
+/** Whole-country view on a phone: every state is on screen so you can pick yours. */
+export const US_OVERVIEW_ZOOM = 3;
 export const PIN_MIN_ZOOM = 13;
 
 export const FEATURED_PLACES = [

@@ -6,6 +6,8 @@ import { bboxSpanMeters, haversineMeters } from "@/lib/geo";
 import { mergeBathrooms, hideRemoved } from "@/lib/merge-bathrooms";
 import { OSM_MAX_SPAN_M } from "@/lib/constants";
 import { assertCivil } from "@/lib/moderation";
+import { parseDaysOpen } from "@/lib/search-radius";
+import { isWorshipVenue } from "@/lib/worship";
 import type {
   AccessType,
   Bathroom,
@@ -66,6 +68,9 @@ type ReviewRow = {
   reviewer_title: string | null;
   created_at: string;
   ask_for_key?: boolean | number | string | null;
+  hours_open?: string | null;
+  hours_close?: string | null;
+  days_open?: string | null;
 };
 
 function num(v: number | string | null | undefined): number | null {
@@ -121,6 +126,9 @@ function mapReview(row: ReviewRow): Review {
     reviewerName: row.reviewer_name?.trim() || "Verified account",
     reviewerTitle: row.reviewer_title?.trim() || null,
     createdAt: row.created_at,
+    hoursOpen: row.hours_open?.trim() || null,
+    hoursClose: row.hours_close?.trim() || null,
+    daysOpen: parseDaysOpen(row.days_open),
   };
 }
 
@@ -152,7 +160,8 @@ const STATS_JOIN = `
 const REVIEW_SELECT = `
   id, bathroom_id, rating, cleanliness, availability, accessibility, atmosphere,
   access_type, coalesce(ask_for_key, false) as ask_for_key, critique, coalesce(reviewer_name, 'Verified account') as reviewer_name,
-  reviewer_title, created_at::text as created_at
+  reviewer_title, created_at::text as created_at,
+  hours_open, hours_close, days_open
 `;
 
 let citySeedsPromise: Promise<void> | null = null;
@@ -160,15 +169,10 @@ async function ensureCitySeeds(sql: Awaited<ReturnType<typeof getSql>>) {
   citySeedsPromise ??= (async () => {
     await sql.query(
       `insert into bathrooms (id, name, lat, lng, access_type, fee, wheelchair, address, source) values
-        ('seed-nyc-bryant', 'Bryant Park Restrooms', 40.7536, -73.9832, 'public', false, true, 'Bryant Park, New York', 'seed'),
         ('seed-nyc-library', 'New York Public Library', 40.7532, -73.9822, 'public', false, true, '476 5th Ave, New York', 'seed'),
         ('seed-nyc-grand-central', 'Grand Central Terminal', 40.7527, -73.9772, 'public', false, true, '89 E 42nd St, New York', 'seed'),
-        ('seed-nyc-wsp', 'Washington Square Park', 40.7308, -73.9973, 'public', false, true, 'Washington Square, New York', 'seed'),
-        ('seed-chi-millennium', 'Millennium Park', 41.8827, -87.6233, 'public', false, true, '201 E Randolph St, Chicago', 'seed'),
         ('seed-chi-cultural', 'Chicago Cultural Center', 41.8837, -87.6247, 'public', false, true, '78 E Washington St, Chicago', 'seed'),
         ('seed-atx-cityhall', 'Austin City Hall', 30.2648, -97.7472, 'public', false, true, '301 W 2nd St, Austin', 'seed'),
-        ('seed-atx-republic', 'Republic Square', 30.2676, -97.7472, 'public', false, true, '422 Guadalupe St, Austin', 'seed'),
-        ('seed-lon-trafalgar', 'Trafalgar Square', 51.5080, -0.1281, 'public', true, true, 'Trafalgar Square, London', 'seed'),
         ('seed-lon-library', 'British Library', 51.5299, -0.1277, 'public', false, true, '96 Euston Rd, London', 'seed'),
         ('seed-tyo-shibuya', 'Shibuya Public Restroom', 35.6595, 139.7004, 'public', false, true, 'Shibuya Crossing, Tokyo', 'seed'),
         ('seed-tyo-shinjuku', 'Shinjuku Station', 35.6896, 139.7006, 'public', false, true, 'Shinjuku Station, Tokyo', 'seed')
@@ -176,43 +180,25 @@ async function ensureCitySeeds(sql: Awaited<ReturnType<typeof getSql>>) {
     );
     await sql.query(
       `insert into bathrooms (id, name, lat, lng, access_type, fee, wheelchair, address, source, kind) values
-        ('seed-dal-klyde', 'Klyde Warren Park', 32.7894, -96.8014, 'public', false, true, '2012 Woodall Rodgers Fwy, Dallas', 'seed', 'park'),
         ('seed-dal-northpark', 'NorthPark Center', 32.8687, -96.7734, 'customers', false, true, '8687 N Central Expy, Dallas', 'seed', 'business'),
-        ('seed-fw-scat', 'Sundance Square', 32.7555, -97.3308, 'public', false, true, 'Sundance Square, Fort Worth', 'seed', 'park'),
-        ('seed-hou-discovery', 'Discovery Green', 29.7543, -95.3594, 'public', false, true, '1500 McKinney St, Houston', 'seed', 'park'),
         ('seed-hou-galleria', 'The Galleria', 29.7390, -95.4630, 'customers', false, true, '5085 Westheimer Rd, Houston', 'seed', 'business'),
-        ('seed-sat-riverwalk', 'River Walk', 29.4246, -98.4880, 'public', false, true, 'River Walk, San Antonio', 'seed', 'park'),
-        ('seed-atx-zilker', 'Zilker Park', 30.2669, -97.7729, 'public', false, true, '2100 Barton Springs Rd, Austin', 'seed', 'park'),
-        ('seed-la-grandpark', 'Grand Park', 34.0553, -118.2453, 'public', false, true, '221 S Grand Ave, Los Angeles', 'seed', 'park'),
         ('seed-la-union', 'Union Station', 34.0561, -118.2342, 'public', false, true, '800 N Alameda St, Los Angeles', 'seed', 'toilet'),
         ('seed-la-grove', 'The Grove', 34.0722, -118.3575, 'customers', false, true, '189 The Grove Dr, Los Angeles', 'seed', 'business'),
-        ('seed-sd-balboa', 'Balboa Park', 32.7313, -117.1467, 'public', false, true, 'Balboa Park, San Diego', 'seed', 'park'),
         ('seed-sea-pike', 'Pike Place Market', 47.6097, -122.3421, 'public', false, true, '85 Pike St, Seattle', 'seed', 'business'),
-        ('seed-pdx-pioneer', 'Pioneer Courthouse Square', 45.5186, -122.6793, 'public', false, true, '701 SW 6th Ave, Portland', 'seed', 'park'),
-        ('seed-phx-civic', 'Civic Space Park', 33.4539, -112.0740, 'public', false, true, '424 N Central Ave, Phoenix', 'seed', 'park'),
-        ('seed-den-civic', 'Civic Center Park', 39.7393, -104.9889, 'public', false, true, '101 W 14th Ave Pkwy, Denver', 'seed', 'park'),
         ('seed-den-union', 'Denver Union Station', 39.7531, -105.0001, 'public', false, true, '1701 Wynkoop St, Denver', 'seed', 'toilet'),
         ('seed-lv-bellagio', 'Bellagio Conservatory', 36.1126, -115.1765, 'customers', false, true, '3600 S Las Vegas Blvd, Las Vegas', 'seed', 'business'),
         ('seed-chi-union', 'Chicago Union Station', 41.8786, -87.6403, 'public', false, true, '225 S Canal St, Chicago', 'seed', 'toilet'),
-        ('seed-chi-navy', 'Navy Pier', 41.8917, -87.6086, 'public', false, true, '600 E Grand Ave, Chicago', 'seed', 'park'),
-        ('seed-det-campus', 'Campus Martius Park', 42.3316, -83.0466, 'public', false, true, '800 Woodward Ave, Detroit', 'seed', 'park'),
         ('seed-nyc-penn', 'Moynihan Train Hall', 40.7506, -73.9935, 'public', false, true, '421 8th Ave, New York', 'seed', 'toilet'),
-        ('seed-nyc-battery', 'Battery Park', 40.7033, -74.0170, 'public', false, true, 'Battery Park, New York', 'seed', 'park'),
-        ('seed-bos-common', 'Boston Common', 42.3551, -71.0656, 'public', false, true, 'Boston Common, Boston', 'seed', 'park'),
-        ('seed-phl-love', 'Love Park', 39.9543, -75.1657, 'public', false, true, 'Arch St, Philadelphia', 'seed', 'park'),
         ('seed-dc-union', 'Union Station', 38.8977, -77.0063, 'public', false, true, '50 Massachusetts Ave NE, Washington', 'seed', 'toilet'),
-        ('seed-dc-mall', 'National Mall', 38.8893, -77.0502, 'public', false, true, 'National Mall, Washington', 'seed', 'park'),
-        ('seed-atl-centennial', 'Centennial Olympic Park', 33.7603, -84.3935, 'public', false, true, '265 Park Ave W NW, Atlanta', 'seed', 'park'),
-        ('seed-mia-bayfront', 'Bayfront Park', 25.7753, -80.1860, 'public', false, true, '301 Biscayne Blvd, Miami', 'seed', 'park'),
-        ('seed-nsh-centennial', 'Centennial Park', 36.1490, -86.8125, 'public', false, true, '2500 West End Ave, Nashville', 'seed', 'park'),
-        ('seed-nola-jackson', 'Jackson Square', 29.9574, -90.0629, 'public', false, true, 'Jackson Square, New Orleans', 'seed', 'park'),
         ('seed-sf-ferry', 'Ferry Building', 37.7955, -122.3937, 'public', false, true, '1 Ferry Building, San Francisco', 'seed', 'business'),
-        ('seed-sf-union', 'Union Square', 37.7879, -122.4074, 'public', false, true, 'Union Square, San Francisco', 'seed', 'park'),
-        ('seed-la-santa', 'Santa Monica Pier', 34.0084, -118.4970, 'public', false, true, 'Santa Monica Pier, Santa Monica', 'seed', 'park'),
         ('seed-nyc-times', 'Times Square Public Restroom', 40.7580, -73.9855, 'public', false, true, 'Times Square, New York', 'seed', 'toilet'),
         ('seed-dal-atm', 'Dallas City Hall', 32.7760, -96.7970, 'public', false, true, '1500 Marilla St, Dallas', 'seed', 'business'),
         ('seed-atx-domain', 'The Domain', 30.4010, -97.7250, 'customers', false, true, '11410 Century Oaks Terrace, Austin', 'seed', 'business')
       on conflict (id) do nothing`,
+    );
+    await sql.query(
+      `delete from bathrooms
+        where kind = 'park' and source is distinct from 'user'`,
     );
     await sql.query(
       `update bathrooms set visibility = 'public'
@@ -237,6 +223,7 @@ export const listBathrooms = createServerFn({ method: "GET" })
        from bathrooms b
        ${STATS_JOIN}
        where b.lat between $1 and $2 and b.lng between $3 and $4
+         and not (b.kind = 'park' and b.source is distinct from 'user')
          and not exists (
            select 1 from removed_venues r
            where r.id = b.id or (b.osm_id is not null and r.osm_id = b.osm_id)
@@ -258,7 +245,7 @@ export const listBathrooms = createServerFn({ method: "GET" })
        limit $5`,
       [south, north, west, east, cap, viewerId],
     );
-    return dbRows.map((row) => mapBathroom(row, viewerId));
+    return dbRows.map((row) => mapBathroom(row, viewerId)).filter((room) => !isWorshipVenue(room.name));
   });
 
 export const listOsmBathrooms = createServerFn({ method: "GET" })
@@ -315,7 +302,7 @@ const bathroomInput = z.object({
   wheelchair: z.boolean().nullable().optional(),
   address: z.string().max(200).nullable().optional(),
   source: z.enum(["osm", "user", "seed"]).optional(),
-  kind: z.enum(["toilet", "restaurant", "gas", "grocery", "park", "business"]).optional(),
+  kind: z.enum(["toilet", "restaurant", "gas", "grocery", "park", "business", "home"]).optional(),
 });
 
 export const addBathroom = createServerFn({ method: "POST" })
@@ -327,7 +314,7 @@ export const addBathroom = createServerFn({ method: "POST" })
       lng: z.number().gte(-180).lte(180),
       accessType: reviewAccessSchema,
       address: z.string().trim().max(160).optional(),
-      kind: z.enum(["toilet", "restaurant", "gas", "grocery", "park", "business"]).optional(),
+      kind: z.enum(["toilet", "restaurant", "gas", "grocery", "park", "business", "home"]).optional(),
       personal: z.boolean().optional(),
     }),
   )
@@ -548,6 +535,9 @@ export const addReview = createServerFn({ method: "POST" })
       accessType: reviewAccessSchema,
       askForKey: z.boolean().optional(),
       critique: z.string().trim().max(600),
+      hoursOpen: z.string().trim().max(8).optional(),
+      hoursClose: z.string().trim().max(8).optional(),
+      daysOpen: z.array(z.string().trim().max(3)).max(7).optional(),
     }),
   )
   .handler(async ({ data, context }) => {
@@ -563,9 +553,11 @@ export const addReview = createServerFn({ method: "POST" })
     const titleId = await equippedTitle(sql, reviewer.userId);
     const title = getBadge(titleId)?.title ?? null;
     const id = `rev-${crypto.randomUUID()}`;
+    const { joinDaysOpen } = await import("@/lib/search-radius");
+    const daysOpen = joinDaysOpen(data.daysOpen ?? []);
     await sql.query(
-      `insert into reviews (id, bathroom_id, rating, cleanliness, availability, accessibility, atmosphere, access_type, ask_for_key, critique, user_id, reviewer_name, reviewer_title)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+      `insert into reviews (id, bathroom_id, rating, cleanliness, availability, accessibility, atmosphere, access_type, ask_for_key, critique, user_id, reviewer_name, reviewer_title, hours_open, hours_close, days_open)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
       [
         id,
         bathroomId,
@@ -580,6 +572,9 @@ export const addReview = createServerFn({ method: "POST" })
         reviewer.userId,
         reviewer.name || "Verified account",
         title,
+        data.hoursOpen || null,
+        data.hoursClose || null,
+        daysOpen,
       ],
     );
     const earned = await awardPoints(
@@ -810,7 +805,7 @@ async function fetchOsmBathrooms(
   if (close) {
     queries.push(`[out:json][timeout:${timeout}];(${poiMeals(full)});out center 1500;`);
     queries.push(
-      `[out:json][timeout:${timeout}];(${nwFilter('["leisure"~"^(park|garden|marina|picnic_site|sports_centre|stadium|recreation_ground)$"]["name"]', full)}${nwFilter('["tourism"~"^(hotel|motel|museum|camp_site|attraction)$"]["name"]', full)}${nwFilter('["amenity"~"^(pharmacy|library|townhall|community_centre|hospital|clinic|place_of_worship|post_office|university)$"]["name"]', full)}${nwFilter('["shop"~"^(doityourself|hardware|mall|car|car_repair)$"]["name"]', full)});out center 500;`,
+      `[out:json][timeout:${timeout}];(${nwFilter('["tourism"~"^(hotel|motel|museum|camp_site|attraction)$"]["name"]', full)}${nwFilter('["amenity"~"^(pharmacy|library|townhall|community_centre|hospital|clinic|post_office|university)$"]["name"]', full)}${nwFilter('["shop"~"^(doityourself|hardware|mall|car|car_repair)$"]["name"]', full)});out center 500;`,
     );
   }
 
@@ -826,14 +821,16 @@ async function fetchOsmBathrooms(
     if (lat == null || lng == null) continue;
     const tags = el.tags ?? {};
     const kind = osmKind(tags);
-    if (!kind) continue;
+    if (!kind || kind === "park") continue;
+    const name = osmName(tags, kind);
+    if (isWorshipVenue(name, { amenity: tags.amenity, kind })) continue;
     rooms.push({
       id: `osm:${el.type}:${el.id}`,
       osmId: `${el.type}/${el.id}`,
-      name: osmName(tags, kind),
+      name,
       lat,
       lng,
-      accessType: kind === "toilet" || kind === "park" ? osmAccess(tags) : "customers",
+      accessType: kind === "toilet" ? osmAccess(tags) : "customers",
       fee: osmBool(tags.fee),
       wheelchair: osmWheelchair(tags.wheelchair),
       address: osmAddress(tags),
@@ -848,7 +845,7 @@ async function fetchOsmBathrooms(
       avgAccessibility: null,
       avgAtmosphere: null,
       askForKey: false,
-      customersOnly: kind !== "toilet" && kind !== "park",
+      customersOnly: kind !== "toilet",
     });
   }
 
@@ -861,6 +858,7 @@ async function fetchOsmBathrooms(
     toilet: 3,
     park: 4,
     business: 5,
+    home: 6,
   };
   return rooms.sort((a, b) => rank[a.kind] - rank[b.kind]).slice(0, MAX_PINS);
 }
@@ -938,6 +936,8 @@ function osmKind(tags: Record<string, string>): VenueKind | null {
   const leisure = (tags.leisure ?? "").toLowerCase();
   const tourism = (tags.tourism ?? "").toLowerCase();
   const highway = (tags.highway ?? "").toLowerCase();
+  if (amenity === "place_of_worship") return null;
+  if (isWorshipVenue(tags.name || tags["name:en"] || tags.brand, { amenity })) return null;
   if (amenity === "toilets" || highway === "rest_area" || highway === "services") return "toilet";
   if (amenity === "fuel" || amenity === "charging_station") return "gas";
   if (
@@ -970,16 +970,23 @@ function osmKind(tags: Record<string, string>): VenueKind | null {
     return "grocery";
   }
   if (
+    leisure === "stadium" ||
+    leisure === "sports_centre" ||
+    leisure === "sports_center"
+  ) {
+    return "business";
+  }
+  if (
     leisure === "park" ||
     leisure === "garden" ||
     leisure === "marina" ||
     leisure === "picnic_site" ||
-    leisure === "sports_centre" ||
-    leisure === "stadium" ||
     leisure === "recreation_ground" ||
-    leisure === "golf_course"
+    leisure === "golf_course" ||
+    leisure === "nature_reserve" ||
+    leisure === "playground"
   ) {
-    return "park";
+    return null;
   }
   if (
     tourism === "hotel" ||
@@ -1001,7 +1008,6 @@ function osmKind(tags: Record<string, string>): VenueKind | null {
     amenity === "clinic" ||
     amenity === "doctors" ||
     amenity === "dentist" ||
-    amenity === "place_of_worship" ||
     amenity === "post_office" ||
     amenity === "courthouse" ||
     amenity === "university" ||
