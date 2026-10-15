@@ -6,7 +6,7 @@ Bundle ID: com.flushfinder.app
 SKU: flush-finder
 Primary language: English (US)
 Category: Travel (Navigation as secondary)
-Age rating: 16+ (user-generated reviews; not directed at children)
+Age rating: 16+ (user-generated reviews; not directed at children under 16)  [keep in sync with MIN_AGE in src/lib/constants.ts]
 Contact email: MisfitSoftwareSupport@gmail.com
 Privacy policy: https://albinosloth21-source.github.io/flush-finder/
 Support URL: https://albinosloth21-source.github.io/flush-finder/

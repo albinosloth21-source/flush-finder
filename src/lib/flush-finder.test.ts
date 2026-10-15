@@ -1761,3 +1761,70 @@ describe("search label", () => {
     assert.doesNotMatch(src, /Search a city|placeholder="Search a place"/);
   });
 });
+
+import { appleConfigFromEnv, showAppleButton } from "./auth/apple.ts";
+import {
+  parseModeratorIds,
+  isRateLimited,
+  REPORT_HIDE_THRESHOLD,
+  statusAfterReport,
+} from "./review-reports.ts";
+import { ageConfirmLabel, needsAgeConfirmation, parseAgeConfirmed } from "./age-gate.ts";
+import { MIN_AGE } from "./constants.ts";
+import { grokExtensionsEnabledFor } from "../../scripts/grok-pwa-shared.mjs";
+
+describe("store readiness", () => {
+  it("Sign in with Apple stays off until configured", () => {
+    assert.equal(appleConfigFromEnv({}), null);
+    assert.equal(appleConfigFromEnv({ APPLE_CLIENT_ID: "x" }), null);
+    assert.deepEqual(appleConfigFromEnv({ APPLE_CLIENT_ID: " id ", APPLE_CLIENT_SECRET: "s" }), { clientId: "id", clientSecret: "s" });
+    assert.equal(appleConfigFromEnv({ APPLE_CLIENT_ID: "i", APPLE_CLIENT_SECRET: "s", APPLE_APP_BUNDLE_IDENTIFIER: "com.flushfinder.app" })?.appBundleIdentifier, "com.flushfinder.app");
+    const base = { enabledFlag: "1", livePreview: false } as const;
+    assert.equal(showAppleButton({ ...base, nativePlatform: "web" }), true);
+    assert.equal(showAppleButton({ ...base, nativePlatform: "ios" }), true);
+    assert.equal(showAppleButton({ ...base, nativePlatform: "android" }), false);
+    assert.equal(showAppleButton({ ...base, nativePlatform: "web", livePreview: true }), false);
+    assert.equal(showAppleButton({ enabledFlag: undefined, livePreview: false, nativePlatform: "ios" }), false);
+  });
+
+  it("Made with Grok pill is off for store builds, on for preview", () => {
+    assert.equal(grokExtensionsEnabledFor({}), true);
+    assert.equal(grokExtensionsEnabledFor({ VITE_GROK_EXTENSIONS: "0" }), false);
+    assert.equal(grokExtensionsEnabledFor({ FF_STORE_BUILD: "1" }), false);
+    assert.equal(grokExtensionsEnabledFor({ FF_STORE_BUILD: "1", VITE_GROK_EXTENSIONS: "1" }), false);
+  });
+
+  it("hides a review after enough distinct reports, respects moderation", () => {
+    assert.equal(statusAfterReport("visible", REPORT_HIDE_THRESHOLD - 1), "visible");
+    assert.equal(statusAfterReport("visible", REPORT_HIDE_THRESHOLD), "pending");
+    assert.equal(statusAfterReport("approved", 99), "approved");
+    assert.equal(statusAfterReport("removed", 0), "removed");
+    assert.equal(isRateLimited(9), false);
+    assert.equal(isRateLimited(10), true);
+    assert.deepEqual([...parseModeratorIds(" a, b ,,")], ["a", "b"]);
+    assert.equal(parseModeratorIds(undefined).size, 0);
+    const sql = readFileSync(new URL("../../migrations/0020_review_reports.sql", import.meta.url), "utf8");
+    assert.match(sql, /unique \(review_id, reporter_id\)/);
+    const api = readFileSync(new URL("./bathrooms.ts", import.meta.url), "utf8");
+    assert.equal((api.match(/moderation_status, 'visible'\) in \('visible', 'approved'\)/g) ?? []).length, 3);
+  });
+
+  it("minimum age is 16 and gates account creation", () => {
+    assert.equal(MIN_AGE, 16);
+    assert.equal(ageConfirmLabel(), "I am 16 or older");
+    assert.equal(needsAgeConfirmation("email-signup"), true);
+    assert.equal(needsAgeConfirmation("provider"), true);
+    assert.equal(needsAgeConfirmation("email-signin"), false);
+    assert.equal(parseAgeConfirmed("16"), true);
+    assert.equal(parseAgeConfirmed("13"), false);
+    assert.equal(parseAgeConfirmed(null), false);
+    const policy = readFileSync(new URL("../components/privacy-policy.tsx", import.meta.url), "utf8");
+    assert.match(policy, /\{MIN_AGE\} years of age/);
+    assert.match(policy, /\{PRIVACY_SWITCH_LABEL\}/);
+    for (const f of ["../../docs/index.html", "../../native/store/listing.txt", "../../native/store/appstore/listing.txt"]) {
+      const text = readFileSync(new URL(f, import.meta.url), "utf8");
+      assert.match(text, /16/);
+      assert.doesNotMatch(text, /\b13\+/);
+    }
+  });
+});
