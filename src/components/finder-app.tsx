@@ -27,7 +27,16 @@ import {
   getAddHold,
   deleteMyPin,
 } from "@/lib/bathrooms";
-import { getDeviceLocation, readLocationPermission } from "@/lib/native";
+import {
+  getDeviceLocation,
+  isFramed,
+  locationHelpFor,
+  openInNewTab,
+  readLocationPermission,
+  readManualSpot,
+  writeManualSpot,
+  type LocationHelp,
+} from "@/lib/native";
 import { composeMapPins, dropMinePin, keepMinePins, resolveOpenPin, reviewSheetOpen } from "@/lib/map-session";
 import { loadPoiTiles } from "@/lib/poi-tiles";
 import { ADD_SPAM_COPY } from "@/lib/pin-policy";
@@ -95,6 +104,9 @@ export function FinderApp() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(false);
   const [locationPrompt, setLocationPrompt] = useState(false);
+  const [locationHelp, setLocationHelp] = useState<LocationHelp | null>(null);
+  const [pickingSpot, setPickingSpot] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [flyTo, setFlyTo] = useState<FlyTo | null>(() => {
     const start = usOverviewView();
     return { seq: 1, lat: start.lat, lng: start.lng, zoom: start.zoom };
@@ -132,7 +144,12 @@ export function FinderApp() {
       const choice = readLocationChoice();
       const permission = await readLocationPermission();
       if (cancelled) return;
+      const manual = readManualSpot();
       if (!shouldAutoLocate(permission, choice)) {
+        if (manual && choice !== "share") {
+          applySpot(manual);
+          return;
+        }
         setLocationPrompt(shouldAskForLocation(permission, choice));
         return;
       }
@@ -147,7 +164,8 @@ export function FinderApp() {
         setLocationPrompt(false);
       } catch {
         if (cancelled) return;
-        setLocationPrompt(shouldAskForLocation(permission, choice));
+        if (manual) applySpot(manual);
+        else setLocationPrompt(shouldAskForLocation(permission, choice));
       } finally {
         if (!cancelled) setLocating(false);
       }
@@ -365,9 +383,40 @@ export function FinderApp() {
     setLocationPrompt(false);
   }
 
+  function applySpot(next: { lat: number; lng: number }) {
+    const start = locatedStartView(next, DEFAULT_RADIUS_MILES);
+    setUserLocation({ lat: next.lat, lng: next.lng });
+    setBounds(boundsFromView(start));
+    setFlyTo({ seq: Date.now(), lat: start.lat, lng: start.lng, zoom: start.zoom });
+    setLocationPrompt(false);
+  }
+
+  function startPickingSpot() {
+    setLocationHelp(null);
+    setLocationPrompt(false);
+    setPlacing(false);
+    setPickingSpot(true);
+  }
+
+  function setSpotFromMap(pos: { lat: number; lng: number }) {
+    setPickingSpot(false);
+    writeManualSpot(pos.lat, pos.lng);
+    flyToUser(pos);
+    toast.success("Spot saved. Restrooms near it are shown.");
+  }
+
+  function searchInstead() {
+    setLocationHelp(null);
+    setLocationPrompt(false);
+    setSearchOpen(true);
+    window.setTimeout(() => searchInputRef.current?.focus(), 0);
+  }
+
   function locate() {
     if (locating) return;
     setLocationPrompt(false);
+    setLocationHelp(null);
+    setPickingSpot(false);
     setLocating(true);
     void getDeviceLocation()
       .then((next) => {
@@ -375,9 +424,10 @@ export function FinderApp() {
         flyToUser(next);
         setLocating(false);
       })
-      .catch(() => {
+      .catch((err: unknown) => {
+        if (typeof console !== "undefined") console.warn("[flush-finder] location failed", err);
         writeLocationChoice("browse");
-        toast.error("Could not read your location. Browse the United States map instead.");
+        setLocationHelp(locationHelpFor(err));
         setLocating(false);
       });
   }
@@ -440,7 +490,7 @@ export function FinderApp() {
           pinBusy={pinBusy}
           userLocation={userLocation}
           route={route}
-          placing={placing}
+          placing={placing || pickingSpot}
           draft={draft}
           flyTo={flyTo}
           radiusMiles={radiusMiles}
@@ -457,6 +507,10 @@ export function FinderApp() {
           }}
           onBounds={rememberBounds}
           onPlace={(pos) => {
+            if (pickingSpot) {
+              setSpotFromMap(pos);
+              return;
+            }
             setDraft(pos);
             setPlacing(false);
             setSelected(null);
@@ -481,6 +535,7 @@ export function FinderApp() {
             <div className="relative min-w-0 flex-1">
               <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
               <Input
+                ref={searchInputRef}
                 value={query}
                 onChange={(e) => {
                   setQuery(e.target.value);
@@ -588,6 +643,63 @@ export function FinderApp() {
               <Button size="sm" variant="outline" onClick={skipLocation} disabled={locating}>
                 Browse the United States
               </Button>
+            </div>
+          ) : null}
+          {pickingSpot ? (
+            <div
+              className="ff-sheet mt-2 flex flex-wrap items-center gap-2 rounded-[var(--radius-xl)] bg-surface p-2 pl-3"
+              data-ff-pick-spot="true"
+            >
+              <p className="min-w-0 flex-1 text-sm leading-snug">Tap the map where you are.</p>
+              <Button size="sm" variant="outline" onClick={() => setPickingSpot(false)}>
+                Cancel
+              </Button>
+            </div>
+          ) : null}
+          {locationHelp ? (
+            <div
+              className="ff-sheet mt-2 flex flex-col gap-2 rounded-[var(--radius-xl)] bg-surface p-3"
+              data-ff-location-help="true"
+              role="alert"
+            >
+              <div className="flex items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold leading-snug">{locationHelp.title}</p>
+                  <p className="mt-0.5 text-sm leading-snug text-subtle">{locationHelp.message}</p>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Dismiss"
+                  className="rounded-full p-1 text-subtle"
+                  onClick={() => setLocationHelp(null)}
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {locationHelp.actions.includes("open-tab") && isFramed() ? (
+                  <Button size="sm" onClick={openInNewTab}>
+                    Open in new tab
+                  </Button>
+                ) : null}
+                {locationHelp.actions.includes("retry") ? (
+                  <Button size="sm" onClick={locate} disabled={locating}>
+                    <LocateFixed className="size-4" />
+                    Try again
+                  </Button>
+                ) : null}
+                {locationHelp.actions.includes("tap-map") ? (
+                  <Button size="sm" variant="outline" onClick={startPickingSpot}>
+                    Tap the map to set my spot
+                  </Button>
+                ) : null}
+                {locationHelp.actions.includes("search") ? (
+                  <Button size="sm" variant="outline" onClick={searchInstead}>
+                    <Search className="size-4" />
+                    Search a city
+                  </Button>
+                ) : null}
+              </div>
             </div>
           ) : null}
         </div>
