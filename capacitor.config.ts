@@ -11,7 +11,7 @@ const config: CapacitorConfig = {
     contentInset: "automatic",
     preferredContentMode: "mobile",
     backgroundColor: "#1e4f4a",
-    scheme: "Flush Finder",
+    scheme: "FlushFinder",
   },
   android: {
     allowMixedContent: false,
