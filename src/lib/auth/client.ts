@@ -1,4 +1,5 @@
 import { genericOAuthClient } from "better-auth/client/plugins";
+import { APPLE_PROVIDER_ID, showAppleButton } from "./apple";
 import { createAuthClient } from "better-auth/react";
 import { runPreSignInSignOut, runSignOut } from "../../../scripts/sign-out-plan.mjs";
 import { GROK_PROVIDERS } from "./providers";
@@ -130,6 +131,13 @@ export async function signIn(
     return;
   }
 
+  if (providerId === APPLE_PROVIDER_ID) {
+    const { data, error } = await authClient.signIn.social({ provider: "apple", callbackURL, errorCallbackURL });
+    if (error) throw new Error(error.message ?? "Sign-in failed");
+    if (data?.url) window.location.href = data.url;
+    return;
+  }
+
   const { data, error } = await authClient.signIn.oauth2({
     providerId,
     callbackURL,
@@ -231,4 +239,16 @@ export async function endSessionNow(redirectTo = "/"): Promise<void> {
     /* cookie may already be invalid after the account row was removed */
   }
   window.location.replace(redirectTo);
+}
+
+/** Whether to render "Continue with Apple" (see `showAppleButton`). */
+export function appleSignInVisible(): boolean {
+  if (typeof window === "undefined") return false;
+  const cap = (window as Window & { Capacitor?: { getPlatform?: () => string } }).Capacitor;
+  const platform = cap?.getPlatform?.();
+  return showAppleButton({
+    enabledFlag: import.meta.env.VITE_APPLE_SIGN_IN as string | undefined,
+    nativePlatform: platform === "ios" || platform === "android" ? platform : "web",
+    livePreview: inLivePreview(),
+  });
 }

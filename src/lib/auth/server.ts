@@ -29,6 +29,7 @@
  * components read the user via `@/lib/auth/use-current-user`; server functions get
  * a verified id via `@/lib/auth/middleware`.
  */
+import { APPLE_PROVIDER_ID, appleConfigFromEnv } from "./apple";
 import { betterAuth } from "better-auth";
 import { bearer, genericOAuth } from "better-auth/plugins";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
@@ -172,6 +173,9 @@ const grokOAuthPlugin = authConfigured
     })
   : null;
 
+// Sign in with Apple (first-party, not via the broker). Off unless configured.
+const appleConfig = appleConfigFromEnv(process.env);
+
 export const auth = betterAuth({
   baseURL,
   // Deployed apps inject BETTER_AUTH_SECRET. Preview: process-stable secret on
@@ -182,7 +186,9 @@ export const auth = betterAuth({
   // CSRF / origin check for credentialed auth POSTs (email sign-up/sign-in, …).
   // See `trustedOrigins` construction above — must cover live preview hosts AND
   // local loopback variants, or clients get "Invalid origin".
-  trustedOrigins,
+  trustedOrigins: appleConfig ? [...trustedOrigins, "https://appleid.apple.com"] : trustedOrigins,
+
+  ...(appleConfig ? { socialProviders: { apple: appleConfig } } : {}),
 
   // Encrypt broker-issued OAuth tokens at rest, and treat the broker's upstreams
   // as trusted first-party identities. The broker owns identity and X emails are
@@ -197,6 +203,7 @@ export const auth = betterAuth({
       trustedProviders: [
         ...GROK_PROVIDERS.map((p) => p.providerId),
         GATE_PROVIDER_ID,
+        ...(appleConfig ? [APPLE_PROVIDER_ID] : []),
       ],
       // X's synthetic email is never "verified", so don't gate linking on the
       // local user's email-verified state.
