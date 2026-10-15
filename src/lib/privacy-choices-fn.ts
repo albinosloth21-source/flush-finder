@@ -9,8 +9,13 @@ export const getPrivacyChoices = createServerFn({ method: "GET" })
     if (!context.userId) return DEFAULT_PRIVACY_CHOICES;
     const { getSql } = await import("@/lib/db");
     const sql = await getSql();
-    await sql.query(`insert into profiles (user_id, points) values ($1, 0) on conflict (user_id) do nothing`, [context.userId]);
-    const rows = await sql.query<{ allow_sale_and_ads: boolean | null }>(`select allow_sale_and_ads from profiles where user_id = $1`, [context.userId]);
+    await sql.query(`insert into profiles (user_id, points) values ($1, 0) on conflict (user_id) do nothing`, [
+      context.userId,
+    ]);
+    const rows = await sql.query<{ allow_sale_and_ads: boolean | null }>(
+      `select allow_sale_and_ads from profiles where user_id = $1`,
+      [context.userId],
+    );
     return normalizePrivacyChoices({ allowSaleAndAds: parseAllowFlag(rows[0]?.allow_sale_and_ads) });
   });
 

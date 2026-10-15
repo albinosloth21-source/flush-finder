@@ -64,3 +64,35 @@ export function lookupGrid(
   }
   return hits;
 }
+
+export function catalogToBathroom(row: {
+  id: string;
+  osm: string;
+  name: string;
+  lat: number;
+  lng: number;
+}, kind: "gas" | "grocery"): Bathroom {
+  return {
+    id: row.id,
+    osmId: row.osm,
+    name: row.name,
+    lat: row.lat,
+    lng: row.lng,
+    accessType: "customers",
+    fee: null,
+    wheelchair: null,
+    address: null,
+    source: "osm",
+    kind,
+    visibility: "public",
+    mine: false,
+    avgRating: null,
+    reviewCount: 0,
+    avgCleanliness: null,
+    avgAvailability: null,
+    avgAccessibility: null,
+    avgAtmosphere: null,
+    askForKey: false,
+    customersOnly: true,
+  };
+}
