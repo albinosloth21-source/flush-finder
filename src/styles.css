@@ -18,6 +18,15 @@
   --color-danger: #8f3d3a;
   --color-warn: #8a5a32;
   --color-good: #2d6a4f;
+  --color-pin-toilet: #1e4f4a;
+  --color-pin-food: #d4522b;
+  --color-pin-gas: #e09a12;
+  --color-pin-grocery: #1a8f4a;
+  --color-pin-park: #2b7fd6;
+  --color-pin-business: #6b45c9;
+  --color-pin-personal: #c43d7a;
+  --color-pin-rated: #8a6a12;
+  --color-radius: #f6e7a3;
 
   --radius-sm: 0.5rem;
   --radius-md: 0.75rem;
@@ -86,12 +95,17 @@
 }
 
 .ff-map {
+  position: relative;
+  z-index: 0;
+  isolation: isolate;
   background: #1a1916;
+  touch-action: pan-x pan-y pinch-zoom;
 }
 
 .ff-map .leaflet-container {
   background: #1a1916;
   font-family: var(--font-sans);
+  touch-action: pan-x pan-y pinch-zoom;
 }
 
 .ff-sat-labels {
@@ -118,16 +132,18 @@
 }
 
 .ff-pin path:first-child {
-  fill: var(--color-primary);
+  fill: var(--color-pin-toilet);
 }
 
-.ff-pin.is-restaurant path:first-child { fill: #8a3d32; }
-.ff-pin.is-gas path:first-child { fill: #8a5a32; }
-.ff-pin.is-grocery path:first-child { fill: #2d6a4f; }
-.ff-pin.is-park path:first-child { fill: #3d6b46; }
-.ff-pin.is-business path:first-child { fill: #3d4f6b; }
-.ff-pin.is-personal path:first-child {
-  fill: color-mix(in oklab, var(--color-warn) 70%, var(--color-foreground));
+.ff-pin.is-toilet path:first-child { fill: var(--color-pin-toilet); }
+.ff-pin.is-restaurant path:first-child { fill: var(--color-pin-food); }
+.ff-pin.is-gas path:first-child { fill: var(--color-pin-gas); }
+.ff-pin.is-grocery path:first-child { fill: var(--color-pin-grocery); }
+.ff-pin.is-park path:first-child { fill: var(--color-pin-park); }
+.ff-pin.is-business path:first-child { fill: var(--color-pin-business); }
+.ff-pin.is-personal path:first-child,
+.ff-pin.is-home path:first-child {
+  fill: var(--color-pin-personal);
 }
 
 .ff-pin.is-pending path:first-child {
@@ -168,7 +184,7 @@
   padding: 0;
   border: 0;
   background: transparent;
-  pointer-events: auto;
+  pointer-events: none;
 }
 
 .ff-pin-hit.is-on {
@@ -182,9 +198,94 @@
   box-shadow: var(--shadow-border);
 }
 
+.ff-list-sheet {
+  bottom: 0;
+  transition:
+    transform 320ms var(--ease-smooth-out),
+    height 320ms var(--ease-smooth-out),
+    opacity 320ms var(--ease-smooth-out);
+}
+
+.ff-list-sheet.is-mid {
+  height: min(38dvh, 22rem);
+  transform: translateY(0);
+}
+
+.ff-list-sheet.is-tall {
+  height: min(88dvh, 54rem);
+  transform: translateY(0);
+}
+
+.ff-list-sheet.is-hidden {
+  height: min(38dvh, 22rem);
+  transform: translateY(110%);
+  pointer-events: none;
+}
+
+.ff-list-sheet.is-hidden.is-dragging {
+  pointer-events: auto;
+}
+
+.ff-list-peek {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 21;
+  display: flex;
+  height: calc(1.75rem + env(safe-area-inset-bottom));
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 0.4rem;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.ff-list-sheet.is-away {
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+.ff-list-sheet.is-dragging,
+.ff-review-sheet.is-dragging {
+  transition: none;
+}
+
+.ff-zoom {
+  position: absolute;
+  top: 7.5rem;
+  right: max(0.75rem, env(safe-area-inset-right));
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  pointer-events: auto;
+}
+
+.ff-zoom button {
+  display: grid;
+  width: 3.15rem;
+  height: 3.15rem;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-foreground);
+  box-shadow: var(--shadow-border);
+  touch-action: manipulation;
+}
+
+.ff-zoom button:disabled {
+  opacity: 0.38;
+}
+
+.ff-zoom button:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
 .ff-review-sheet {
   bottom: var(--kb, 0px);
-  height: min(58dvh, 34rem);
+  height: min(46dvh, 28rem);
   z-index: 250;
   transform: translateY(110%);
   transition:
@@ -219,8 +320,43 @@
   padding-top: max(0.75rem, env(safe-area-inset-top));
 }
 
+.leaflet-ff-radius-pane {
+  z-index: 450 !important;
+  pointer-events: none;
+}
+
+.ff-radius-map-label {
+  background: none !important;
+  border: none !important;
+}
+
+.ff-radius-map-label-text {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #1a1916;
+  color: var(--color-radius);
+  padding: 0.28rem 0.7rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  box-shadow: 0 8px 18px -10px rgb(0 0 0 / 55%);
+}
+
+.isolate.is-panning .ff-pin-hit {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .leaflet-control {
   z-index: 400 !important;
+}
+
+.leaflet-top {
+  top: 7.5rem;
 }
 
 .leaflet-control-zoom a {
@@ -239,7 +375,7 @@
 
 @media (min-width: 900px) {
   .leaflet-top {
-    top: 6.25rem;
+    top: 8.25rem;
   }
 
   .leaflet-right {
@@ -254,7 +390,8 @@
 @media (prefers-reduced-motion: reduce) {
   .ff-pin.is-busy,
   .ff-review-sheet,
-  .ff-review-sheet.is-open {
+  .ff-review-sheet.is-open,
+  .ff-list-sheet {
     animation: none;
     transition: none;
   }
@@ -348,5 +485,70 @@
 }
 .ff-title-badge.is-tide {
   background: var(--color-accent);
+  color: var(--color-primary-foreground);
+}
+
+.ff-filter {
+  height: 2rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  padding: 0 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: color-mix(in oklab, var(--chip) 18%, var(--color-surface));
+  color: var(--chip);
+}
+
+.ff-filter.is-on {
+  background: var(--chip);
+  color: var(--color-surface-2);
+}
+
+.ff-filter[data-kind="all"] { --chip: var(--color-foreground); }
+.ff-filter[data-kind="toilet"] { --chip: var(--color-pin-toilet); }
+.ff-filter[data-kind="personal"] { --chip: var(--color-pin-personal); }
+.ff-filter[data-kind="restaurant"] { --chip: var(--color-pin-food); }
+.ff-filter[data-kind="gas"] { --chip: var(--color-pin-gas); }
+.ff-filter[data-kind="grocery"] { --chip: var(--color-pin-grocery); }
+.ff-filter[data-kind="park"] { --chip: var(--color-pin-park); }
+.ff-filter[data-kind="business"] { --chip: var(--color-pin-business); }
+.ff-filter[data-kind="home"] { --chip: var(--color-pin-personal); }
+.ff-filter[data-kind="rated"] { --chip: var(--color-pin-rated); }
+.ff-filter[data-kind="all"].is-on { color: var(--color-surface); }
+.ff-filter[data-kind="rated"].is-on { color: var(--color-surface-2); }
+
+.ff-kind-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 1.35rem;
+  border-radius: 999px;
+  padding: 0 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  background: color-mix(in oklab, var(--chip) 18%, var(--color-surface));
+  color: var(--chip);
+}
+.ff-kind-chip.is-toilet { --chip: var(--color-pin-toilet); }
+.ff-kind-chip.is-restaurant { --chip: var(--color-pin-food); }
+.ff-kind-chip.is-gas { --chip: var(--color-pin-gas); }
+.ff-kind-chip.is-grocery { --chip: var(--color-pin-grocery); }
+.ff-kind-chip.is-park { --chip: var(--color-pin-park); }
+.ff-kind-chip.is-business { --chip: var(--color-pin-business); }
+.ff-kind-chip.is-home { --chip: var(--color-pin-personal); }
+
+.ff-radius-chip {
+  height: 2rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  padding: 0 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--color-surface);
+  color: var(--color-foreground);
+  box-shadow: var(--shadow-border);
+}
+
+.ff-radius-chip.is-on {
+  background: var(--color-primary);
   color: var(--color-primary-foreground);
 }
