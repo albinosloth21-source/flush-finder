@@ -4,15 +4,14 @@ export type PrivacyChoices = {
   allowSaleAndAds: boolean;
 };
 
+/** Off by default: data sale and personalized ads need an explicit opt-in. */
 export const DEFAULT_PRIVACY_CHOICES: PrivacyChoices = {
-  allowSaleAndAds: true,
+  allowSaleAndAds: false,
 };
 
+/** Only an explicit "yes" turns sale and ads on; anything missing or unknown is off. */
 export function parseAllowFlag(value: unknown): boolean {
-  if (value === false || value === 0 || value === "0" || value === "f" || value === "false" || value === "n") {
-    return false;
-  }
-  return true;
+  return value === true || value === 1 || value === "1" || value === "t" || value === "true" || value === "y";
 }
 
 export function normalizePrivacyChoices(input: Partial<PrivacyChoices> | null | undefined): PrivacyChoices {
@@ -29,7 +28,8 @@ export function mergePrivacyChoices(local: PrivacyChoices, remote?: PrivacyChoic
   if (local.allowSaleAndAds === false || remote?.allowSaleAndAds === false) {
     return { allowSaleAndAds: false };
   }
-  return { allowSaleAndAds: true };
+  // Only this device's explicit opt-in turns it on; a server row may hold the old default.
+  return { allowSaleAndAds: local.allowSaleAndAds === true };
 }
 
 export function readLocalPrivacyChoices(): PrivacyChoices {

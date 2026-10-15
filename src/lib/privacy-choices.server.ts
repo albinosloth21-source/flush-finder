@@ -27,8 +27,9 @@ export const setPrivacyChoices = createServerFn({ method: "POST" })
     const sql = await getSql();
     const next = normalizePrivacyChoices(data);
     await sql.query(
-      `insert into profiles (user_id, points, allow_sale_and_ads) values ($1, 0, $2)
-       on conflict (user_id) do update set allow_sale_and_ads = excluded.allow_sale_and_ads`,
+      `insert into profiles (user_id, points, allow_sale_and_ads, allow_sale_and_ads_set_at) values ($1, 0, $2, now())
+       on conflict (user_id) do update set allow_sale_and_ads = excluded.allow_sale_and_ads,
+         allow_sale_and_ads_set_at = now()`,
       [context.userId, next.allowSaleAndAds],
     );
     return next;
