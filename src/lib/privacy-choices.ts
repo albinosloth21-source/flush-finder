@@ -1,8 +1,12 @@
 export const PRIVACY_CHOICE_KEY = "ff-privacy-choices-v1";
 
-export type PrivacyChoices = { allowSaleAndAds: boolean };
+export type PrivacyChoices = {
+  allowSaleAndAds: boolean;
+};
 
-export const DEFAULT_PRIVACY_CHOICES: PrivacyChoices = { allowSaleAndAds: true };
+export const DEFAULT_PRIVACY_CHOICES: PrivacyChoices = {
+  allowSaleAndAds: true,
+};
 
 export function parseAllowFlag(value: unknown): boolean {
   if (value === false || value === 0 || value === "0" || value === "f" || value === "false" || value === "n") {
@@ -12,7 +16,13 @@ export function parseAllowFlag(value: unknown): boolean {
 }
 
 export function normalizePrivacyChoices(input: Partial<PrivacyChoices> | null | undefined): PrivacyChoices {
-  return { allowSaleAndAds: parseAllowFlag(input?.allowSaleAndAds) };
+  return {
+    allowSaleAndAds: parseAllowFlag(input?.allowSaleAndAds),
+  };
+}
+
+export function isSaleAndAdsAllowed(choices: PrivacyChoices): boolean {
+  return choices.allowSaleAndAds === true;
 }
 
 export function mergePrivacyChoices(local: PrivacyChoices, remote?: PrivacyChoices | null): PrivacyChoices {

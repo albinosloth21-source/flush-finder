@@ -3,7 +3,19 @@ import { useCurrentUserState, type AppUser, type CurrentUserState } from "@/lib/
 import { parseKeptUser } from "@/lib/session-keep-parse";
 
 const KEY = "ff-keep-signed-in-v1";
+
 export { parseKeptUser };
+
+function sameUser(a: AppUser | null, b: AppUser | null): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    a.id === b.id &&
+    a.displayName === b.displayName &&
+    a.primaryEmail === b.primaryEmail &&
+    a.profileImageUrl === b.profileImageUrl
+  );
+}
 
 export function readKeptUser(): AppUser | null {
   if (typeof window === "undefined") return null;
@@ -19,7 +31,7 @@ export function keepSignedIn(user: AppUser) {
   try {
     window.localStorage.setItem(KEY, JSON.stringify(user));
   } catch {
-    /* storage blocked */
+    /* storage full or blocked */
   }
 }
 
@@ -32,15 +44,22 @@ export function clearKeptUser() {
   }
 }
 
+/** Session user that survives reloads until they tap Sign out. */
 export function usePersistentUser(): CurrentUserState {
   const live = useCurrentUserState();
   const [kept, setKept] = useState<AppUser | null>(() => readKeptUser());
   const liveUser = live.user;
+  const liveId = liveUser?.id ?? "";
+
   useEffect(() => {
     if (!liveUser) return;
     keepSignedIn(liveUser);
-    setKept(liveUser);
-  }, [liveUser]);
+    setKept((prev) => (sameUser(prev, liveUser) ? prev : liveUser));
+  }, [liveId, liveUser?.displayName, liveUser?.primaryEmail, liveUser?.profileImageUrl]);
+
   const user = liveUser ?? kept;
-  return { user, isPending: live.isPending && !user };
+  return {
+    user,
+    isPending: live.isPending && !user,
+  };
 }
