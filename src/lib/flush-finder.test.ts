@@ -1645,3 +1645,82 @@ describe("Stay signed in, personal restrooms, and seamless running", () => {
   });
 });
 
+
+import {
+  classifyGeolocationError,
+  detectInAppBrowser,
+  LocationError,
+  locationHelp,
+  parseManualSpot,
+  preflightLocation,
+  serializeManualSpot,
+} from "./location.ts";
+
+describe("location failures", () => {
+  const top = { secure: true, framed: false, native: false };
+  const web = { native: false, inAppBrowser: null, apple: false };
+
+  it("classifies browser errors and keeps the original", () => {
+    const denied = { code: 1, message: "User denied Geolocation" };
+    const e = classifyGeolocationError(denied, top);
+    assert.ok(e instanceof LocationError);
+    assert.equal(e.code, "denied");
+    assert.equal(e.cause, denied);
+    assert.equal(classifyGeolocationError({ code: 2 }, top).code, "unavailable");
+    assert.equal(classifyGeolocationError({ code: 3 }, top).code, "timeout");
+    assert.equal(classifyGeolocationError(new Error("x"), top).code, "unavailable");
+    const already = new LocationError("insecure", "x");
+    assert.equal(classifyGeolocationError(already, top), already);
+  });
+
+  it("reports a denial inside an iframe as framed", () => {
+    assert.equal(classifyGeolocationError({ code: 1 }, { ...top, framed: true }).code, "framed");
+  });
+
+  it("preflights insecure and unsupported browsers, skips native", () => {
+    assert.equal(preflightLocation({ ...top, secure: false, hasGeolocation: true })?.code, "insecure");
+    assert.equal(preflightLocation({ ...top, hasGeolocation: false })?.code, "unsupported");
+    assert.equal(preflightLocation({ ...top, hasGeolocation: true }), null);
+    assert.equal(preflightLocation({ ...top, native: true, secure: false, hasGeolocation: false }), null);
+  });
+
+  it("detects in-app browsers", () => {
+    assert.equal(detectInAppBrowser("Mozilla/5.0 (iPhone) Instagram 300.0"), "Instagram");
+    assert.equal(detectInAppBrowser("Mozilla/5.0 [FBAN/FBIOS;FBAV/400]"), "Facebook");
+    assert.equal(detectInAppBrowser("Mozilla/5.0 (Linux; Android 14) Chrome/130 Mobile Safari/537.36"), null);
+  });
+
+  it("gives every failure a message and the manual fallbacks", () => {
+    for (const code of ["insecure", "framed", "denied", "unavailable", "timeout", "unsupported"] as const) {
+      for (const env of [web, { ...web, native: true }, { ...web, apple: true }, { ...web, inAppBrowser: "X" }]) {
+        const help = locationHelp(code, env);
+        assert.ok(help.title.length > 0 && help.message.length > 0);
+        assert.ok(help.actions.includes("tap-map") && help.actions.includes("search"), `${code} fallbacks`);
+      }
+    }
+  });
+
+  it("offers open-in-new-tab only for the framed case", () => {
+    assert.ok(locationHelp("framed", web).actions.includes("open-tab"));
+    assert.ok(!locationHelp("denied", web).actions.includes("open-tab"));
+    assert.ok(!locationHelp("timeout", web).actions.includes("open-tab"));
+  });
+
+  it("explains settings for denials and in-app browsers", () => {
+    assert.match(locationHelp("denied", { ...web, native: true, apple: true }).message, /Settings/);
+    assert.match(locationHelp("denied", { ...web, native: true }).message, /Permissions/);
+    assert.match(locationHelp("denied", { ...web, apple: true }).message, /Safari/);
+    assert.match(locationHelp("denied", { ...web, inAppBrowser: "Instagram", apple: true }).message, /Instagram.*Safari/);
+    assert.ok(locationHelp("timeout", web).actions.includes("retry"));
+    assert.ok(!locationHelp("insecure", web).actions.includes("retry"));
+  });
+
+  it("round-trips a manual spot and rejects junk", () => {
+    const spot = parseManualSpot(serializeManualSpot(32.776664, -96.796988, 5));
+    assert.deepEqual(spot, { lat: 32.77666, lng: -96.79699, at: 5 });
+    assert.equal(parseManualSpot(null), null);
+    assert.equal(parseManualSpot("not json"), null);
+    assert.equal(parseManualSpot('{"lat":200,"lng":0}'), null);
+    assert.equal(parseManualSpot('{"lat":"1","lng":2}'), null);
+  });
+});
