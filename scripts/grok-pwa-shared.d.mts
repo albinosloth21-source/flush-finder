@@ -79,3 +79,5 @@ export declare function createHeadInjector(ctx?: GrokHeadContext): {
   push(chunk: Uint8Array | string): Uint8Array[];
   flush(): Uint8Array[];
 };
+
+export declare function grokExtensionsEnabledFor(env: Record<string, string | undefined> | undefined | null): boolean;

@@ -207,9 +207,19 @@ export function readGrokProjectId() {
   return String(fromProcess ?? "").trim();
 }
 
+/**
+ * "Made with Grok" pill (extensions.js). On by default so the Grok Build preview
+ * keeps working. Off when VITE_GROK_EXTENSIONS=0 or for store/production builds
+ * (FF_STORE_BUILD=1, set by `npm run build:store`).
+ */
+export function grokExtensionsEnabledFor(env) {
+  const e = env ?? {};
+  if (String(e.FF_STORE_BUILD ?? "").trim() === "1") return false;
+  return String(e.VITE_GROK_EXTENSIONS ?? "").trim() !== "0";
+}
+
 export function readGrokExtensionsEnabled() {
-  const fromProcess = typeof process !== "undefined" ? process.env?.VITE_GROK_EXTENSIONS : "";
-  return String(fromProcess ?? "").trim() !== "0";
+  return grokExtensionsEnabledFor(typeof process !== "undefined" ? process.env : {});
 }
 
 export function readXCreator() {
