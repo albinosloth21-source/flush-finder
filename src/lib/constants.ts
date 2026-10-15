@@ -59,3 +59,11 @@ export const FEATURED_PLACES = [
 ] as const;
 
 export const OSM_MAX_SPAN_M = 120_000;
+
+/**
+ * Minimum user age (owner decided 16+ on Oct 15, 2026).
+ * If it ever changes, also update the static copies listed in docs/STORE-READINESS.md
+ * (docs/index.html, native/store/listing.txt, native/store/appstore/listing.txt)
+ * and the store age-rating questionnaires.
+ */
+export const MIN_AGE: number = 16;

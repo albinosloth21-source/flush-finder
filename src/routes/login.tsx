@@ -1,6 +1,9 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
-import { GROK_PROVIDERS, authClient, authEnabled, signIn } from "@/lib/auth/client";
+import { GROK_PROVIDERS, appleSignInVisible, authClient, authEnabled, signIn } from "@/lib/auth/client";
+import { APPLE_PROVIDER_ID } from "@/lib/auth/apple";
+import { AGE_CONFIRM_KEY, ageConfirmLabel, needsAgeConfirmation, parseAgeConfirmed } from "@/lib/age-gate";
+import { MIN_AGE } from "@/lib/constants";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { LogoMark, Wordmark } from "@/components/toilet-mark";
 import { Button } from "@/components/ui/button";
@@ -18,6 +21,32 @@ function Login() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showApple, setShowApple] = useState(false);
+  const [ageOk, setAgeOk] = useState(false);
+  useEffect(() => {
+    setShowApple(appleSignInVisible());
+    try {
+      setAgeOk(parseAgeConfirmed(window.localStorage.getItem(AGE_CONFIRM_KEY)));
+    } catch {
+      /* private mode */
+    }
+  }, []);
+
+  function confirmAge(next: boolean) {
+    setAgeOk(next);
+    try {
+      if (next) window.localStorage.setItem(AGE_CONFIRM_KEY, String(MIN_AGE));
+      else window.localStorage.removeItem(AGE_CONFIRM_KEY);
+    } catch {
+      /* private mode */
+    }
+  }
+
+  function ageBlocked(action: "email-signin" | "email-signup" | "provider"): boolean {
+    if (!needsAgeConfirmation(action) || ageOk) return false;
+    setError(`Confirm you are ${MIN_AGE} or older to create an account.`);
+    return true;
+  }
 
   if (isPending) {
     return (
@@ -30,6 +59,7 @@ function Login() {
 
   async function onOAuth(providerId: string) {
     setError(null);
+    if (ageBlocked("provider")) return;
     setBusy(true);
     try {
       await signIn(providerId, { callbackURL: "/", errorCallbackURL: "/login" });
@@ -42,6 +72,7 @@ function Login() {
   async function onEmail(event: FormEvent) {
     event.preventDefault();
     setError(null);
+    if (ageBlocked(mode === "signup" ? "email-signup" : "email-signin")) return;
     setBusy(true);
     try {
       if (mode === "signup") {
@@ -88,8 +119,33 @@ function Login() {
             Confirm your email to rate restrooms. Or continue as a guest to look around.
           </p>
 
+          <label className="mt-5 flex items-start gap-2 text-sm" data-ff-age-confirm="true">
+            <input
+              type="checkbox"
+              className="mt-0.5 size-4 accent-[var(--color-primary)]"
+              checked={ageOk}
+              onChange={(e) => confirmAge(e.target.checked)}
+            />
+            <span>
+              {ageConfirmLabel()}
+              <span className="block text-[0.75rem] text-subtle">
+                Needed to create an account. Guests can browse without one.
+              </span>
+            </span>
+          </label>
+
           {authEnabled ? (
-            <div className="mt-5 grid gap-2">
+            <div className="mt-4 grid gap-2">
+              {showApple ? (
+                <Button
+                  type="button"
+                  disabled={busy}
+                  className="bg-foreground text-background hover:bg-foreground/90"
+                  onClick={() => void onOAuth(APPLE_PROVIDER_ID)}
+                >
+                  Continue with Apple
+                </Button>
+              ) : null}
               {GROK_PROVIDERS.map((provider) => (
                 <Button
                   key={provider.providerId}

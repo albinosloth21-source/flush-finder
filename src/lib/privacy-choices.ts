@@ -1,3 +1,6 @@
+/** Exact label of the Account → Privacy switch; the policy quotes it. */
+export const PRIVACY_SWITCH_LABEL = "Sell my data & personalized ads";
+
 export const PRIVACY_CHOICE_KEY = "ff-privacy-choices-v1";
 
 export type PrivacyChoices = {
