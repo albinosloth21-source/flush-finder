@@ -4,30 +4,76 @@ export function isNativeApp(): boolean {
   return Boolean(cap?.isNativePlatform?.());
 }
 
-export async function getDeviceLocation(): Promise<{ lat: number; lng: number }> {
+export type LocationPermission = "granted" | "denied" | "prompt" | "unknown";
+
+export async function readLocationPermission(): Promise<LocationPermission> {
+  if (typeof navigator === "undefined") return "unknown";
   if (isNativeApp()) {
     try {
       const { Geolocation } = await import("@capacitor/geolocation");
-      const pos = await Geolocation.getCurrentPosition({
-        enableHighAccuracy: true,
-        timeout: 12_000,
-      });
-      return { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      const perm = await Geolocation.checkPermissions();
+      if (perm.location === "granted" || perm.coarseLocation === "granted") return "granted";
+      if (perm.location === "denied" || perm.coarseLocation === "denied") return "denied";
+      return "prompt";
     } catch {
-      /* fall through */
+      return "unknown";
     }
   }
+  try {
+    const perms = navigator.permissions;
+    if (!perms?.query) return "unknown";
+    const status = await perms.query({ name: "geolocation" as PermissionName });
+    if (status.state === "granted" || status.state === "denied" || status.state === "prompt") {
+      return status.state;
+    }
+  } catch {
+    /* Safari and some WebViews throw on geolocation permission queries. */
+  }
+  return "unknown";
+}
+
+function browserPosition(): Promise<{ lat: number; lng: number }> {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
       reject(new Error("Location is not available on this device."));
       return;
     }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => reject(new Error("Could not read your location.")),
-      { enableHighAccuracy: true, timeout: 12_000, maximumAge: 15_000 },
-    );
+    const ok = (pos: GeolocationPosition) =>
+      resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+    const fail = () => reject(new Error("Could not read your location."));
+    const coarse = () =>
+      navigator.geolocation.getCurrentPosition(ok, fail, {
+        enableHighAccuracy: false,
+        timeout: 6000,
+        maximumAge: 120_000,
+      });
+    navigator.geolocation.getCurrentPosition(ok, coarse, {
+      enableHighAccuracy: true,
+      timeout: 3500,
+      maximumAge: 30_000,
+    });
   });
+}
+
+export async function getDeviceLocation(): Promise<{ lat: number; lng: number }> {
+  if (isNativeApp()) {
+    try {
+      const { Geolocation } = await import("@capacitor/geolocation");
+      const perm = await Geolocation.requestPermissions();
+      const granted = perm.location === "granted" || perm.coarseLocation === "granted";
+      if (!granted) {
+        throw new Error("Location permission denied");
+      }
+      const pos = await Geolocation.getCurrentPosition({
+        enableHighAccuracy: true,
+        timeout: 8_000,
+      });
+      return { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    } catch {
+      /* fall through to browser geolocation */
+    }
+  }
+  return browserPosition();
 }
 
 export async function prepareNativeShell() {
@@ -41,6 +87,6 @@ export async function prepareNativeShell() {
     await StatusBar.setBackgroundColor({ color: "#1e4f4a" }).catch(() => undefined);
     await SplashScreen.hide();
   } catch {
-    /* web preview */
+    /* web preview has no native plugins */
   }
 }

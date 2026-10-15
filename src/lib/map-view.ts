@@ -3,7 +3,11 @@ import type { MapBounds } from "./types.ts";
 
 export const MAP_VIEW_KEY = "ff-last-map-view-v1";
 
-export type SavedMapView = { lat: number; lng: number; zoom: number };
+export type SavedMapView = {
+  lat: number;
+  lng: number;
+  zoom: number;
+};
 
 export function parseSavedMapView(raw: string | null | undefined): SavedMapView | null {
   if (!raw) return null;
@@ -45,5 +49,16 @@ export function viewFromBounds(bounds: MapBounds): SavedMapView {
     lat: (bounds.south + bounds.north) / 2,
     lng: (bounds.west + bounds.east) / 2,
     zoom: Math.round(bounds.zoom || DEFAULT_ZOOM),
+  };
+}
+
+export function boundsFromView(view: SavedMapView): MapBounds {
+  const span = 0.04 * 2 ** (DEFAULT_ZOOM - view.zoom);
+  return {
+    south: view.lat - span,
+    north: view.lat + span,
+    west: view.lng - span,
+    east: view.lng + span,
+    zoom: view.zoom,
   };
 }
