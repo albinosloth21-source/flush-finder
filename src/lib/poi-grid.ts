@@ -8,7 +8,7 @@ export type TilePoi = {
   name: string;
   lat: number;
   lng: number;
-  kind: "gas" | "grocery";
+  kind: "gas" | "grocery" | "toilet";
 };
 
 export function tileKey(lat: number, lng: number): string {
@@ -71,14 +71,15 @@ export function catalogToBathroom(row: {
   name: string;
   lat: number;
   lng: number;
-}, kind: "gas" | "grocery"): Bathroom {
+}, kind: "gas" | "grocery" | "toilet"): Bathroom {
+  const restroom = kind === "toilet";
   return {
     id: row.id,
     osmId: row.osm,
     name: row.name,
     lat: row.lat,
     lng: row.lng,
-    accessType: "customers",
+    accessType: restroom ? "public" : "customers",
     fee: null,
     wheelchair: null,
     address: null,
@@ -93,6 +94,7 @@ export function catalogToBathroom(row: {
     avgAccessibility: null,
     avgAtmosphere: null,
     askForKey: false,
-    customersOnly: true,
+    customersOnly: !restroom,
+    ...(restroom ? { unverified: true } : {}),
   };
 }

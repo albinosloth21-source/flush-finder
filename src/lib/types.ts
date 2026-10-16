@@ -35,6 +35,8 @@ export type Bathroom = {
   hoursOpen?: string | null;
   hoursClose?: string | null;
   daysOpen?: string[];
+  /** Imported from OpenStreetMap and not yet confirmed by a Flush Finder review. */
+  unverified?: boolean;
 };
 
 export type Review = {

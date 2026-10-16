@@ -46,6 +46,7 @@ import { cn } from "@/lib/utils";
 export type NearbyFilter =
   | "all"
   | "personal"
+  | "toilet"
   | "restaurant"
   | "gas"
   | "grocery"
@@ -55,6 +56,7 @@ export type NearbyFilter =
 
 const FILTERS: { id: NearbyFilter; label: string }[] = [
   { id: "all", label: "All" },
+  { id: "toilet", label: "Public restrooms" },
   { id: "personal", label: "Personal restrooms" },
   { id: "restaurant", label: "Food" },
   { id: "gas", label: "Gas" },
@@ -219,6 +221,9 @@ export function NearbyList({
                     Customers only
                   </Badge>
                   {room.askForKey ? <Badge variant="default">Ask for key</Badge> : null}
+                  {room.unverified && room.reviewCount === 0 ? (
+                    <Badge variant="outline" className="ff-unverified">Unverified, confirm it?</Badge>
+                  ) : null}
                   {room.wheelchair ? <Badge variant="muted">Accessible</Badge> : null}
                 </div>
               </div>
@@ -348,7 +353,7 @@ export function BathroomDetail({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[0.6875rem] font-medium tracking-[0.16em] text-muted uppercase">
-            {VENUE_LABELS[bathroom.kind]} restroom
+            {/restroom$/i.test(VENUE_LABELS[bathroom.kind]) ? VENUE_LABELS[bathroom.kind] : `${VENUE_LABELS[bathroom.kind]} restroom`}
           </p>
           <h2 className="font-display mt-0.5 text-2xl font-semibold tracking-tight text-balance">
             {bathroom.name}
@@ -403,6 +408,12 @@ export function BathroomDetail({
           </p>
         ) : null}
         <p className="mt-1 text-[0.75rem] text-subtle">{VENUE_HINTS[bathroom.kind]}</p>
+        {bathroom.unverified && bathroom.reviewCount === 0 ? (
+          <p className="ff-unverified-note mt-2 flex flex-wrap items-center gap-1.5 text-[0.75rem] text-muted">
+            <Badge variant="outline" className="ff-unverified">Unverified, confirm it?</Badge>
+            <span>From OpenStreetMap. Been here? A quick review confirms it for everyone.</span>
+          </p>
+        ) : null}
 
         <div className="mt-3 flex flex-wrap gap-1.5">
           <AccessChip on={bathroom.customersOnly || bathroom.accessType === "customers"} icon={<Store className="size-3" />}>
