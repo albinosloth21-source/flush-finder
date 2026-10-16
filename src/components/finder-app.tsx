@@ -14,6 +14,7 @@ import { InstallPrompt } from "@/components/install-prompt";
 import { HeaderAccount } from "@/components/account-bar";
 import { FirstRunIntro, useIntroOpenEvent } from "@/components/first-run-intro";
 import { HelpMenu } from "@/components/help-menu";
+import { RoadTripSheet } from "@/components/road-trip-sheet";
 import { setFeedbackMapCenter } from "@/components/feedback-sheet";
 import { FlushLoader, FlushLoaderLogo } from "@/components/flush-loader";
 import { celebratePoints, playFlush } from "@/lib/throne-fx";
@@ -112,6 +113,7 @@ export function FinderApp() {
   const [locationPrompt, setLocationPrompt] = useState(false);
   const [locationHelp, setLocationHelp] = useState<LocationHelp | null>(null);
   const [pickingSpot, setPickingSpot] = useState(false);
+  const [roadTrip, setRoadTrip] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [flyTo, setFlyTo] = useState<FlyTo | null>(() => {
     const start = usOverviewView();
@@ -652,6 +654,14 @@ export function FinderApp() {
             >
               {locating ? "Finding you" : "Re-center"}
             </button>
+            <button
+              type="button"
+              className="ff-radius-chip"
+              data-ff-road-trip-open="true"
+              onClick={() => setRoadTrip(true)}
+            >
+              Road trip
+            </button>
           </div>
           {locationPrompt ? (
             <div
@@ -1040,6 +1050,18 @@ export function FinderApp() {
             </Button>
           </div>
         </div>
+      ) : null}
+      {roadTrip ? (
+        <RoadTripSheet
+          origin={userLocation}
+          knownRooms={bathroomsQuery.data ?? []}
+          onClose={() => setRoadTrip(false)}
+          onPick={(room) => {
+            setRoadTrip(false);
+            setFlyTo({ seq: Date.now(), lat: room.lat, lng: room.lng, zoom: 16, padBottom: true });
+            selectRoom(room);
+          }}
+        />
       ) : null}
       <InstallPrompt />
       {introOpen ? (
