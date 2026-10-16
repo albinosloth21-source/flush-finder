@@ -552,3 +552,193 @@
   background: var(--color-primary);
   color: var(--color-primary-foreground);
 }
+
+/* ---- Golden Throne (first-run intro, feedback sheet, toast) ---- */
+.ff-throne-intro,
+.ff-throne-sheet,
+.ff-throne-toast {
+  --ff-gold: #d4af37;
+  --ff-gold-hi: #f6e27a;
+  --ff-gold-lo: #a67c1b;
+  color: #f7f2e3;
+}
+.ff-throne-intro {
+  background:
+    radial-gradient(60rem 30rem at 50% -10%, rgb(212 175 55 / 0.22), transparent 60%),
+    radial-gradient(40rem 24rem at 50% 110%, rgb(212 175 55 / 0.12), transparent 60%),
+    linear-gradient(180deg, #1e4f4a 0%, #143834 100%);
+}
+.ff-throne-sheet {
+  background: linear-gradient(180deg, #1e4f4a 0%, #163f3b 100%);
+  box-shadow: 0 0 0 1px rgb(212 175 55 / 0.45), 0 -12px 40px rgb(0 0 0 / 0.35);
+}
+.ff-gold-text {
+  background: linear-gradient(100deg, var(--ff-gold-lo) 0%, var(--ff-gold-hi) 45%, var(--ff-gold) 60%, var(--ff-gold-lo) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.ff-gold-button {
+  display: inline-flex;
+  height: 3rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: 999px;
+  font-weight: 600;
+  color: #2a1f05;
+  background: linear-gradient(180deg, var(--ff-gold-hi, #f6e27a) 0%, var(--ff-gold, #d4af37) 55%, var(--ff-gold-lo, #a67c1b) 100%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.5), 0 4px 14px rgb(0 0 0 / 0.25);
+}
+.ff-gold-button:disabled {
+  opacity: 0.55;
+}
+.ff-throne-chip {
+  height: 2.25rem;
+  flex: 1;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #f3e7c0;
+  border: 1px solid rgb(212 175 55 / 0.45);
+}
+.ff-throne-chip.is-on {
+  color: #2a1f05;
+  background: linear-gradient(180deg, #f6e27a, #d4af37);
+  border-color: transparent;
+}
+.ff-throne-logo {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.6rem;
+  box-shadow: 0 0 0 2px rgb(212 175 55 / 0.7), 0 0 40px rgb(212 175 55 / 0.35);
+}
+.ff-throne-logo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 35%, rgb(255 255 255 / 0.45) 50%, transparent 65%);
+  transform: translateX(-120%);
+  animation: ff-throne-shine 4.5s ease-in-out 0.6s infinite;
+  pointer-events: none;
+}
+@keyframes ff-throne-shine {
+  0%, 60% { transform: translateX(-120%); }
+  100% { transform: translateX(120%); }
+}
+.ff-throne-slide {
+  animation: ff-throne-in 0.35s ease-out;
+}
+@keyframes ff-throne-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.ff-throne-toast {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: min(22rem, calc(100vw - 2rem));
+  padding: 0.75rem 1rem;
+  border-radius: 1rem;
+  background: linear-gradient(180deg, #1e4f4a, #163f3b);
+  box-shadow: 0 0 0 1px rgb(212 175 55 / 0.6), 0 8px 24px rgb(0 0 0 / 0.3);
+}
+.ff-throne-toast .font-display {
+  color: #f6e27a;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ff-throne-logo::after,
+  .ff-throne-slide {
+    animation: none;
+  }
+}
+
+/* ---- Flush loader, bubbles, toilet-paper progress, crown ---- */
+.ff-flush-loader {
+  animation: ff-flush-spin 0.9s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+  transform-origin: 50% 50%;
+}
+@keyframes ff-flush-spin {
+  from { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(200deg) scale(0.92); }
+  to { transform: rotate(360deg) scale(1); }
+}
+.ff-bubbles {
+  position: fixed;
+  left: 50%;
+  top: max(5rem, calc(env(safe-area-inset-top) + 4rem));
+  z-index: 1200;
+  width: 9rem;
+  height: 7rem;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.ff-bubbles-label {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #2a1f05;
+  background: linear-gradient(180deg, #f6e27a, #d4af37);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.2);
+  animation: ff-bubble-label 1.7s ease-out forwards;
+}
+.ff-bubble {
+  position: absolute;
+  bottom: 0.5rem;
+  border-radius: 999px;
+  background: radial-gradient(circle at 30% 30%, rgb(255 255 255 / 0.9), rgb(246 226 122 / 0.55) 45%, rgb(212 175 55 / 0.25));
+  box-shadow: inset 0 0 0 1px rgb(212 175 55 / 0.6);
+  opacity: 0;
+  animation: ff-bubble-rise 1.3s ease-out forwards;
+}
+@keyframes ff-bubble-rise {
+  0% { opacity: 0; transform: translateY(0) scale(0.6); }
+  15% { opacity: 1; }
+  85% { opacity: 1; transform: translateY(-5.5rem) scale(1); }
+  100% { opacity: 0; transform: translateY(-6rem) scale(1.5); }
+}
+@keyframes ff-bubble-label {
+  0% { opacity: 0; transform: translate(-50%, 6px); }
+  15%, 75% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -8px); }
+}
+.ff-tp-bar {
+  position: relative;
+  height: 0.9rem;
+  border-radius: 999px;
+  background: #e6e0d4;
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.12);
+  overflow: hidden;
+}
+.ff-tp-bar > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  /* toilet-paper sheets: soft white with perforation lines every ~14px, gold edge */
+  background:
+    repeating-linear-gradient(90deg, transparent 0 13px, rgb(166 124 27 / 0.35) 13px 14px),
+    linear-gradient(180deg, #fffdf6, #f1ead6);
+  box-shadow: inset 0 0 0 1px rgb(212 175 55 / 0.7);
+  transition: width 0.6s ease-out;
+}
+.ff-crown {
+  color: #d4af37;
+  filter: drop-shadow(0 1px 0 rgb(0 0 0 / 0.2));
+}
+@media (prefers-reduced-motion: reduce) {
+  .ff-flush-loader {
+    animation: ff-flush-pulse 1.6s ease-in-out infinite;
+  }
+  .ff-tp-bar > span {
+    transition: none;
+  }
+}
+@keyframes ff-flush-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
