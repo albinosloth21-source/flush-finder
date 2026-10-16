@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
-import { GROK_PROVIDERS, appleSignInVisible, authClient, authEnabled, signIn } from "@/lib/auth/client";
+import { GROK_PROVIDERS, appleSignInVisible, authClient, authEnabled, emailCodeSignInVisible, signIn } from "@/lib/auth/client";
 import { APPLE_PROVIDER_ID } from "@/lib/auth/apple";
 import { AGE_CONFIRM_KEY, ageConfirmLabel, needsAgeConfirmation, parseAgeConfirmed } from "@/lib/age-gate";
 import { MIN_AGE } from "@/lib/constants";
@@ -23,6 +23,9 @@ function Login() {
   const [error, setError] = useState<string | null>(null);
   const [showApple, setShowApple] = useState(false);
   const [ageOk, setAgeOk] = useState(false);
+  const [codeEmailAddr, setCodeEmailAddr] = useState("");
+  const [codeSent, setCodeSent] = useState(false);
+  const [otp, setOtp] = useState("");
   useEffect(() => {
     setShowApple(appleSignInVisible());
     try {
@@ -65,6 +68,32 @@ function Login() {
       await signIn(providerId, { callbackURL: "/", errorCallbackURL: "/login" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign-in failed");
+      setBusy(false);
+    }
+  }
+
+  // Passwordless: may create a new account, so it needs the age checkbox like providers.
+  async function onEmailCode(event: FormEvent) {
+    event.preventDefault();
+    setError(null);
+    if (ageBlocked("provider")) return;
+    setBusy(true);
+    try {
+      if (!codeSent) {
+        const { error: sendError } = await authClient.emailOtp.sendVerificationOtp({
+          email: codeEmailAddr,
+          type: "sign-in",
+        });
+        if (sendError) throw new Error(sendError.message ?? "Could not send a code");
+        setCodeSent(true);
+        setBusy(false);
+        return;
+      }
+      const { error: otpError } = await authClient.signIn.emailOtp({ email: codeEmailAddr, otp: otp.trim() });
+      if (otpError) throw new Error(otpError.message ?? "That code did not work");
+      window.location.href = "/";
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not continue");
       setBusy(false);
     }
   }
@@ -161,6 +190,41 @@ function Login() {
           ) : (
             <p className="mt-5 text-sm text-muted">Sign-in is disabled.</p>
           )}
+
+          {authEnabled && emailCodeSignInVisible ? (
+            <form className="mt-4 grid gap-2" onSubmit={(event) => void onEmailCode(event)} data-ff-email-code="true">
+              <Label htmlFor="code-email">Email me a sign-in code</Label>
+              <Input
+                id="code-email"
+                type="email"
+                required
+                value={codeEmailAddr}
+                onChange={(e) => {
+                  setCodeEmailAddr(e.target.value);
+                  setCodeSent(false);
+                }}
+                autoComplete="email"
+                placeholder="you@email.com"
+              />
+              {codeSent ? (
+                <Input
+                  id="code-otp"
+                  inputMode="numeric"
+                  required
+                  pattern="[0-9]{6}"
+                  maxLength={6}
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  autoComplete="one-time-code"
+                  placeholder="6-digit code"
+                  aria-label="6-digit code"
+                />
+              ) : null}
+              <Button type="submit" variant="outline" disabled={busy}>
+                {codeSent ? "Sign in with code" : "Send code"}
+              </Button>
+            </form>
+          ) : null}
 
           <div className="my-5 flex items-center gap-3 text-[0.75rem] tracking-[0.14em] text-subtle uppercase">
             <span className="h-px flex-1 bg-foreground/10" />
