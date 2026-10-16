@@ -48,7 +48,7 @@ import { loadPoiTiles } from "@/lib/poi-tiles";
 import { ADD_SPAM_COPY } from "@/lib/pin-policy";
 import { getReviewer } from "@/lib/reviewer";
 import { usePersistentUser } from "@/lib/session-keep";
-import { FEATURED_PLACES } from "@/lib/constants";
+import { CONUS_BOUNDS, FEATURED_PLACES } from "@/lib/constants";
 import { boundsFromView, viewFromBounds, writeSavedMapView } from "@/lib/map-view";
 import { directionsUrl, haversineMeters, roundBounds } from "@/lib/geo";
 import {
@@ -115,7 +115,7 @@ export function FinderApp() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [flyTo, setFlyTo] = useState<FlyTo | null>(() => {
     const start = usOverviewView();
-    return { seq: 1, lat: start.lat, lng: start.lng, zoom: start.zoom };
+    return { seq: 1, lat: start.lat, lng: start.lng, zoom: start.zoom, fit: CONUS_BOUNDS };
   });
   const [placing, setPlacing] = useState(false);
   const [draft, setDraft] = useState<{ lat: number; lng: number } | null>(null);
@@ -458,9 +458,10 @@ export function FinderApp() {
   function skipLocation() {
     writeLocationChoice("browse");
     setLocationPrompt(false);
+    setLocationHelp(null);
     const start = usOverviewView();
     setBounds(boundsFromView(start));
-    setFlyTo({ seq: Date.now(), lat: start.lat, lng: start.lng, zoom: start.zoom });
+    setFlyTo({ seq: Date.now(), lat: start.lat, lng: start.lng, zoom: start.zoom, fit: CONUS_BOUNDS });
   }
 
   function changeRadius(miles: RadiusMiles) {

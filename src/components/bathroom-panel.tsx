@@ -168,7 +168,7 @@ export function NearbyList({
       <div data-ff-sheet-handle className="shrink-0 touch-none">
         <p className="text-[0.6875rem] font-medium tracking-[0.16em] text-muted uppercase">Nearby</p>
         <h2 className="font-display text-lg font-semibold tracking-tight">
-          {`${bathrooms.length} ${noun}${range}`}
+          {zoomedOut && bathrooms.length === 0 ? "Zoom into your state" : `${bathrooms.length} ${noun}${range}`}
         </h2>
       </div>
       {loading ? (

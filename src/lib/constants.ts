@@ -9,6 +9,11 @@ export const DEFAULT_ZOOM = 13;
 export const US_CENTER = { lat: 39.8283, lng: -98.5795 };
 /** Whole-country view on a phone: every state is on screen so you can pick yours. */
 export const US_OVERVIEW_ZOOM = 3;
+/** Contiguous US (south-west, north-east) for "Browse the United States". */
+export const CONUS_BOUNDS: [[number, number], [number, number]] = [
+  [24.5, -124.8],
+  [49.4, -66.9],
+];
 export const PIN_MIN_ZOOM = 13;
 
 export const FEATURED_PLACES = [

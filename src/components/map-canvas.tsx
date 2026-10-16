@@ -13,6 +13,8 @@ export type FlyTo = {
   lng: number;
   zoom?: number;
   padBottom?: boolean;
+  /** Fit these bounds instead of center/zoom (e.g. the contiguous US). */
+  fit?: [[number, number], [number, number]];
 };
 
 type Props = {
@@ -531,6 +533,16 @@ export default function MapCanvas(props: Props) {
     if (!map || !fly || !mapReady) return;
     if (lastFlySeq.current === fly.seq) return;
     lastFlySeq.current = fly.seq;
+    if (fly.fit) {
+      try {
+        map.stop();
+      } catch {
+        /* map may not be animating */
+      }
+      map.invalidateSize();
+      map.fitBounds(fly.fit, { animate: false, padding: [12, 12] });
+      return;
+    }
     const zoom = fly.zoom ?? zoomForMiles(2);
     const here = { lat: map.getCenter().lat, lng: map.getCenter().lng, zoom: map.getZoom() };
     const dest = { lat: fly.lat, lng: fly.lng, zoom };
