@@ -1,4 +1,5 @@
-import { genericOAuthClient } from "better-auth/client/plugins";
+import { emailOTPClient, genericOAuthClient } from "better-auth/client/plugins";
+import { directProviderFor, isProviderNotFound } from "./direct-providers";
 import { APPLE_PROVIDER_ID, showAppleButton } from "./apple";
 import { createAuthClient } from "better-auth/react";
 import { runPreSignInSignOut, runSignOut } from "../../../scripts/sign-out-plan.mjs";
@@ -20,7 +21,7 @@ import { browserTokenStores, readPersistedBearer, writePersistedBearer } from "@
  * the visitor stays signed in.
  */
 export const authClient = createAuthClient({
-  plugins: [genericOAuthClient()],
+  plugins: [genericOAuthClient(), emailOTPClient()],
   fetchOptions: {
     onRequest(ctx) {
       const token = getBearerToken();
@@ -138,6 +139,18 @@ export async function signIn(
     return;
   }
 
+  // Direct Google / X when the server has its own creds; PROVIDER_NOT_FOUND
+  // means it doesn't, so fall through to the Grok broker unchanged.
+  const direct = directProviderFor(providerId, false);
+  if (direct) {
+    const res = await authClient.signIn.social({ provider: direct, callbackURL, errorCallbackURL });
+    if (!res.error && res.data?.url) {
+      window.location.href = res.data.url;
+      return;
+    }
+    if (res.error && !isProviderNotFound(res.error)) throw new Error(res.error.message ?? "Sign-in failed");
+  }
+
   const { data, error } = await authClient.signIn.oauth2({
     providerId,
     callbackURL,
@@ -252,3 +265,6 @@ export function appleSignInVisible(): boolean {
     livePreview: inLivePreview(),
   });
 }
+
+/** Whether to show "Email me a sign-in code" (server also needs RESEND_API_KEY + EMAIL_FROM). */
+export const emailCodeSignInVisible = String(import.meta.env.VITE_EMAIL_CODE_SIGN_IN ?? "").trim() === "1";

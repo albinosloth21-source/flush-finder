@@ -31,7 +31,9 @@
  */
 import { APPLE_PROVIDER_ID, appleConfigFromEnv } from "./apple";
 import { betterAuth } from "better-auth";
-import { bearer, genericOAuth } from "better-auth/plugins";
+import { bearer, emailOTP, genericOAuth } from "better-auth/plugins";
+import { directSocialConfigFromEnv } from "./direct-providers";
+import { codeEmail, emailSenderConfigured, sendEmail } from "../email-sender.server";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { getCookie } from "@tanstack/react-start/server";
 import { randomBytes } from "node:crypto";
@@ -176,6 +178,27 @@ const grokOAuthPlugin = authConfigured
 // Sign in with Apple (first-party, not via the broker). Off unless configured.
 const appleConfig = appleConfigFromEnv(process.env);
 
+// Direct Google / X (own OAuth creds, portable off Grok). Each only when its env
+// vars are set; the broker providers above stay registered as the fallback.
+const directSocial = directSocialConfigFromEnv(process.env);
+const socialProviders = {
+  ...(appleConfig ? { apple: appleConfig } : {}),
+  ...directSocial,
+};
+const hasSocialProviders = Object.keys(socialProviders).length > 0;
+
+// Passwordless email codes — only when a real sender (Resend) is configured.
+const emailCodeSignIn = emailSenderConfigured()
+  ? emailOTP({
+      otpLength: 6,
+      expiresIn: 600,
+      async sendVerificationOTP({ email, otp, type }) {
+        const { subject, text } = codeEmail(otp, type === "sign-in" ? "sign-in" : "confirm");
+        await sendEmail({ to: email, subject, text });
+      },
+    })
+  : null;
+
 export const auth = betterAuth({
   baseURL,
   // Deployed apps inject BETTER_AUTH_SECRET. Preview: process-stable secret on
@@ -188,7 +211,7 @@ export const auth = betterAuth({
   // local loopback variants, or clients get "Invalid origin".
   trustedOrigins: appleConfig ? [...trustedOrigins, "https://appleid.apple.com"] : trustedOrigins,
 
-  ...(appleConfig ? { socialProviders: { apple: appleConfig } } : {}),
+  ...(hasSocialProviders ? { socialProviders } : {}),
 
   // Encrypt broker-issued OAuth tokens at rest, and treat the broker's upstreams
   // as trusted first-party identities. The broker owns identity and X emails are
@@ -204,6 +227,7 @@ export const auth = betterAuth({
         ...GROK_PROVIDERS.map((p) => p.providerId),
         GATE_PROVIDER_ID,
         ...(appleConfig ? [APPLE_PROVIDER_ID] : []),
+        ...Object.keys(directSocial),
       ],
       // X's synthetic email is never "verified", so don't gate linking on the
       // local user's email-verified state.
@@ -244,6 +268,9 @@ export const auth = betterAuth({
     // One genericOAuth provider per upstream (when auth is on), all federating
     // to the broker with the SAME client and differing only by the `idp` hint.
     ...(grokOAuthPlugin ? [grokOAuthPlugin] : []),
+
+    // Passwordless "email me a code" sign-in (off unless RESEND_API_KEY + EMAIL_FROM).
+    ...(emailCodeSignIn ? [emailCodeSignIn] : []),
 
     // Accept `Authorization: Bearer <session-token>` as an alternative to the
     // cookie. Needed for the LIVE PREVIEW: the app runs in an embedded iframe

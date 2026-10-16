@@ -94,6 +94,8 @@ function ConfirmEmail() {
               This app cannot send mail from here, so the code is shown once. Type it below to confirm the address.
             </p>
           </div>
+        ) : requestMutation.isSuccess && !requestMutation.data?.confirmed ? (
+          <p className="mt-5 text-sm text-muted">We emailed you a 6-digit code. Check your inbox (and spam).</p>
         ) : null}
 
         <form

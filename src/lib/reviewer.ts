@@ -34,6 +34,12 @@ export const requestEmailCode = createServerFn({ method: "POST" })
          created_at = now()`,
       [context.userId, hash, reviewer.email],
     );
+    const { emailSenderConfigured, sendEmail, codeEmail } = await import("@/lib/email-sender.server");
+    if (emailSenderConfigured()) {
+      // Real sender (own host): email the code, never show it on screen.
+      await sendEmail({ to: reviewer.email, ...codeEmail(code, "confirm") });
+      return { confirmed: false as const, previewCode: null as string | null };
+    }
     return { confirmed: false as const, previewCode: code };
   });
 
