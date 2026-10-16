@@ -50,7 +50,7 @@ import { getReviewer } from "@/lib/reviewer";
 import { usePersistentUser } from "@/lib/session-keep";
 import { CONUS_BOUNDS, FEATURED_PLACES } from "@/lib/constants";
 import { boundsFromView, viewFromBounds, writeSavedMapView } from "@/lib/map-view";
-import { directionsUrl, haversineMeters, roundBounds } from "@/lib/geo";
+import { haversineMeters, roundBounds } from "@/lib/geo";
 import {
   DEFAULT_RADIUS_MILES,
   RADIUS_MILES,
@@ -987,10 +987,6 @@ export function FinderApp() {
                     toLng: sheetPlace.lng,
                   },
                 });
-              }}
-              onOpenMaps={(kind) => {
-                const urls = directionsUrl(sheetPlace, userLocation);
-                window.open(kind === "google" ? urls.google : urls.apple, "_blank", "noopener,noreferrer");
               }}
               onRemove={(reason) => {
                 if (sheetPlace.mine && sheetPlace.source === "user") {

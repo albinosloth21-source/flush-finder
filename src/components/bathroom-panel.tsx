@@ -7,8 +7,6 @@ import {
   Footprints,
   Crown,
   MapPinOff,
-  MapPinned,
-  Navigation,
   Plus,
   KeyRound,
   Store,
@@ -40,6 +38,7 @@ import { CIVIL_COPY, isCivil } from "@/lib/moderation";
 import { reviewPoints } from "@/lib/badges";
 import { overallScore } from "@/lib/toilet-score";
 import { FlushLoader } from "@/components/flush-loader";
+import { TakeMeThere } from "@/components/take-me-there";
 import { isGoldenThrone } from "@/lib/throne-fx";
 import { cn } from "@/lib/utils";
 
@@ -318,7 +317,6 @@ export function BathroomDetail({
   onBack,
   onReview,
   onWalk,
-  onOpenMaps,
   onRemove,
   removing,
   canReview,
@@ -333,7 +331,6 @@ export function BathroomDetail({
   onBack: () => void;
   onReview: () => void;
   onWalk: () => void;
-  onOpenMaps: (kind: "google" | "apple") => void;
   onRemove: (reason: (typeof REMOVE_REASONS)[number]["value"]) => void;
   removing: boolean;
   canReview: boolean;
@@ -443,14 +440,7 @@ export function BathroomDetail({
             {routing ? <FlushLoader className="size-4" /> : <Footprints className="size-4" />}
             {route ? formatWalk(route.durationSeconds) : "Walk there"}
           </Button>
-          <Button variant="outline" onClick={() => onOpenMaps("google")}>
-            <Navigation className="size-4" />
-            Google
-          </Button>
-          <Button variant="outline" onClick={() => onOpenMaps("apple")}>
-            <MapPinned className="size-4" />
-            Apple Maps
-          </Button>
+          <TakeMeThere dest={bathroom} className="col-span-2" />
         </div>
         {!origin ? (
           <p className="mt-2 text-[0.75rem] text-subtle">Share your location to plot a walking route.</p>
