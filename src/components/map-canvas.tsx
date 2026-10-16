@@ -151,14 +151,17 @@ export default function MapCanvas(props: Props) {
           keepBuffer: 2,
         },
       );
-      const streets = L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
-        attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · <a href="https://carto.com/">CARTO</a>',
-        subdomains: "abcd",
-        maxZoom: 20,
-        updateWhenIdle: true,
-        keepBuffer: 2,
-      });
+      const streets = L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+        {
+          attribution:
+            "Tiles &copy; Esri &mdash; Source: Esri, HERE, Garmin, USGS, Intermap, INCREMENT P, NRCan, Esri Japan, METI, Esri China (Hong Kong), Esri Korea, Esri (Thailand), NGCC, &copy; OpenStreetMap contributors, and the GIS User Community",
+          maxZoom: 19,
+          maxNativeZoom: 19,
+          updateWhenIdle: true,
+          keepBuffer: 2,
+        },
+      );
       if (preferLabeledMap(startZoom)) {
         streets.addTo(map);
         setSatellite(false);
