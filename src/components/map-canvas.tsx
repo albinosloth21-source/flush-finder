@@ -48,7 +48,7 @@ function eventPoint(
 }
 
 function pinHtml(room: Bathroom, selected: boolean, busy: boolean) {
-  return `<div class="ff-pin is-${room.kind}${selected ? " is-on" : ""}${busy ? " is-busy" : ""}${room.reviewCount > 0 ? " is-rated" : ""}${room.visibility === "personal" ? " is-personal" : ""}${room.visibility === "pending" ? " is-pending" : ""}">${PIN_SVG}</div>`;
+  return `<div class="ff-pin is-${room.kind}${selected ? " is-on" : ""}${busy ? " is-busy" : ""}${room.reviewCount > 0 ? " is-rated" : ""}${room.visibility === "personal" ? " is-personal" : ""}${room.visibility === "pending" ? " is-pending" : ""}${room.unverified && room.reviewCount === 0 ? " is-unverified" : ""}">${PIN_SVG}</div>`;
 }
 
 export default function MapCanvas(props: Props) {
@@ -455,7 +455,7 @@ export default function MapCanvas(props: Props) {
         } else {
           const el = marker.getElement()?.querySelector(".ff-pin");
           if (el) {
-            el.className = `ff-pin is-${room.kind}${selected ? " is-on" : ""}${busy ? " is-busy" : ""}${room.reviewCount > 0 ? " is-rated" : ""}${room.visibility === "personal" ? " is-personal" : ""}${room.visibility === "pending" ? " is-pending" : ""}`;
+            el.className = `ff-pin is-${room.kind}${selected ? " is-on" : ""}${busy ? " is-busy" : ""}${room.reviewCount > 0 ? " is-rated" : ""}${room.visibility === "personal" ? " is-personal" : ""}${room.visibility === "pending" ? " is-pending" : ""}${room.unverified && room.reviewCount === 0 ? " is-unverified" : ""}`;
           }
         }
         marker.setZIndexOffset(selected ? 700 : room.reviewCount > 0 ? 200 : 0);

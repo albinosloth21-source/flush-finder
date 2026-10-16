@@ -742,3 +742,8 @@
   0%, 100% { opacity: 1; }
   50% { opacity: 0.55; }
 }
+
+/* Public restrooms imported from OpenStreetMap that nobody has confirmed yet */
+.ff-unverified { border-style: dashed; border-color: var(--color-gold, #c9a227); color: var(--color-foreground); }
+.ff-pin.is-unverified { opacity: 0.88; }
+.ff-pin.is-unverified path:first-child { stroke: var(--color-gold, #c9a227); stroke-dasharray: 2 1.5; }

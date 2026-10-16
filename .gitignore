@@ -27,3 +27,4 @@ flush-finder.zip
 src/data/us-gas-stations.json
 src/data/us-grocery-stores.json
 src/data/parts/
+.cache/
