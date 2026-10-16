@@ -23,3 +23,22 @@ update reviews set moderation_status = 'approved', moderated_at = now(), moderat
 update reviews set moderation_status = 'removed', moderated_at = now(), moderated_by = 'admin' where id = '<review id>';
 ```
 Both stores expect a working report path and timely action on user-generated content (Apple 1.2, Google UGC policy).
+
+# In-app feedback
+- **Send feedback** is in Account (Help & feedback) and the header **?** menu. Guests and signed-in users can send it.
+- Type (bug / idea / other), message (1–2000 chars), optional email for guests. Auto-attached: app version, route, user agent, and the current map center rounded to ~1 km (location is never requested).
+- Max 5 per hour per account, or per hashed IP for guests (`src/lib/feedback.ts`). Raw IPs are not stored (salted SHA-256; set `FEEDBACK_IP_SALT` or it falls back to `BETTER_AUTH_SECRET`).
+- Stored in `app_feedback` (`migrations/0021_app_feedback.sql`). Moderators (`MODERATOR_USER_IDS`) can call `listFeedback` (`src/lib/feedback-fn.ts`).
+
+```sql
+-- Newest feedback
+select id, created_at, kind, status, message, email, user_id, app_version, route, map_lat, map_lng
+from app_feedback order by created_at desc limit 100;
+
+-- Open bugs only
+select id, created_at, message, route, user_agent from app_feedback
+where kind = 'bug' and status = 'new' order by created_at desc;
+
+-- Mark handled
+update app_feedback set status = 'done' where id = <id>;
+```
