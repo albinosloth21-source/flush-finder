@@ -1,6 +1,6 @@
 import { lazy, Suspense, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { LocateFixed, Plus, Search, X, ChevronDown } from "lucide-react";
+import { Car, LocateFixed, Plus, Search, X, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import {
   AddBathroomForm,
@@ -636,6 +636,20 @@ export function FinderApp() {
             </div>
           ) : null}
           <div className="mt-2 flex items-center gap-1.5 overflow-x-auto pb-0.5">
+            {/* First in the row so it is never scrolled off the right edge on phones. */}
+            <button
+              type="button"
+              className="ff-radius-chip ff-trip-chip shrink-0"
+              data-ff-road-trip-open="true"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSearchOpen(false);
+                setRoadTrip(true);
+              }}
+            >
+              <Car className="size-3.5" />
+              Road trip
+            </button>
             {RADIUS_MILES.map((miles) => (
               <button
                 key={miles}
@@ -653,14 +667,6 @@ export function FinderApp() {
               disabled={locating}
             >
               {locating ? "Finding you" : "Re-center"}
-            </button>
-            <button
-              type="button"
-              className="ff-radius-chip"
-              data-ff-road-trip-open="true"
-              onClick={() => setRoadTrip(true)}
-            >
-              Road trip
             </button>
           </div>
           {locationPrompt ? (

@@ -780,3 +780,11 @@
 }
 .ff-trip-input::placeholder { color: rgb(233 226 207 / 0.6); }
 .ff-trip-input:focus { outline: 2px solid #d4af37; outline-offset: 1px; }
+.ff-trip-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: #2a1f05;
+  background: linear-gradient(180deg, #f6e27a, #d4af37);
+  border-color: transparent;
+}
