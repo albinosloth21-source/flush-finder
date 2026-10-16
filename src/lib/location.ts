@@ -100,11 +100,13 @@ export function locationHelp(
 ): LocationHelp {
   const fallbacks: LocationAction[] = ["tap-map", "search"];
   const browser = env.apple ? "Safari" : "Chrome";
-  if (env.inAppBrowser && !env.native && (code === "denied" || code === "framed" || code === "unsupported")) {
+  if (env.inAppBrowser && !env.native && code !== "insecure") {
+    // Links opened inside X, Instagram, Discord, etc. use that app's location permission,
+    // which is often off: the browser then times out or denies with no prompt.
     return {
       title: "Open in your browser",
       message: `${env.inAppBrowser}'s built-in browser often blocks location. Use the ••• menu to open Flush Finder in ${browser}, or set your spot by hand.`,
-      actions: fallbacks,
+      actions: code === "timeout" || code === "unavailable" ? ["retry", ...fallbacks] : fallbacks,
     };
   }
   switch (code) {
@@ -133,7 +135,11 @@ export function locationHelp(
     case "timeout":
       return {
         title: "Couldn't find you in time",
-        message: "Your GPS didn't answer quickly. Try again near a window, or set your spot by hand.",
+        message: env.native
+          ? "Your GPS didn't answer quickly. Try again near a window, or set your spot by hand."
+          : env.apple
+            ? "Your phone didn't share a location. Check Settings → Privacy & Security → Location Services is on, and that Safari Websites is set to “While Using the App”. Then try again, or set your spot by hand."
+            : "Your phone didn't share a location. Check that Location is on for your device and for Chrome (Settings → Apps → Chrome → Permissions), then try again, or set your spot by hand.",
         actions: ["retry", ...fallbacks],
       };
     case "insecure":

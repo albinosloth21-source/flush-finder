@@ -1713,6 +1713,9 @@ describe("location failures", () => {
     assert.match(locationHelp("denied", { ...web, apple: true }).message, /Safari/);
     assert.match(locationHelp("denied", { ...web, inAppBrowser: "Instagram", apple: true }).message, /Instagram.*Safari/);
     assert.ok(locationHelp("timeout", web).actions.includes("retry"));
+    assert.match(locationHelp("timeout", { ...web, inAppBrowser: "X", apple: true }).message, /X.*Safari/);
+    assert.ok(locationHelp("timeout", { ...web, inAppBrowser: "X" }).actions.includes("retry"));
+    assert.match(locationHelp("timeout", { ...web, apple: true }).message, /Safari Websites/);
     assert.ok(!locationHelp("insecure", web).actions.includes("retry"));
   });
 
