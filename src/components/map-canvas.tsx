@@ -164,6 +164,9 @@ export default function MapCanvas(props: Props) {
           keepBuffer: 2,
         },
       );
+      map.attributionControl.addAttribution(
+        '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
+      );
       if (preferLabeledMap(startZoom)) {
         streets.addTo(map);
         setSatellite(false);

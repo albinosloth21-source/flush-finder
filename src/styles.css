@@ -747,3 +747,24 @@
 .ff-unverified { border-style: dashed; border-color: var(--color-gold, #c9a227); color: var(--color-foreground); }
 .ff-pin.is-unverified { opacity: 0.88; }
 .ff-pin.is-unverified path:first-child { stroke: var(--color-gold, #c9a227); stroke-dasharray: 2 1.5; }
+
+/* Take me there */
+.ff-take-chip {
+  height: 1.75rem;
+  flex: 1;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-foreground);
+  border: 1px solid rgb(212 175 55 / 0.55);
+}
+.ff-take-chip.is-on {
+  color: #2a1f05;
+  background: linear-gradient(180deg, #f6e27a, #d4af37);
+  border-color: transparent;
+}
+.ff-take-compact {
+  height: 2rem;
+  padding: 0 0.75rem;
+  font-size: 0.8rem;
+}
