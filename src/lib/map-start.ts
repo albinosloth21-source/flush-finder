@@ -62,11 +62,17 @@ export function shouldAskForLocation(
   return true;
 }
 
+/**
+ * Locate on load when the OS already allows it, or when the user tapped "Use my location"
+ * earlier this session. Safari reports "prompt" (or throws -> "unknown") even right after the
+ * user allowed location, so a reload would otherwise leave them on the national map with no prompt.
+ */
 export function shouldAutoLocate(
   permission: LocationPermission,
-  _choice: LocationChoice | null = null,
+  choice: LocationChoice | null = null,
 ): boolean {
-  return permission === "granted";
+  if (permission === "granted") return true;
+  return choice === "share" && (permission === "prompt" || permission === "unknown");
 }
 
 export function resolveMapStart(opts: {

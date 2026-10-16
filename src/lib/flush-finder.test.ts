@@ -1135,7 +1135,8 @@ describe("Radius search, worship filter, and operating hours", () => {
     check(resolveMapStart({ permission: "denied", coords: null }).zoom === US_OVERVIEW_ZOOM, "denied location stays on US");
     check(resolveMapStart({ permission: "granted", coords: here }).zoom === zoomForMiles(2), "granted location uses radius zoom");
     check(shouldAutoLocate("granted", null) && !shouldAutoLocate("prompt", null), "auto-locate only when already allowed");
-    check(!shouldAutoLocate("prompt", "share") && !shouldAutoLocate("denied", "browse"), "do not locate without OS permission");
+    check(shouldAutoLocate("prompt", "share") && shouldAutoLocate("unknown", "share"), "re-locate after the user chose share this session (Safari reports prompt)");
+    check(!shouldAutoLocate("prompt", "browse") && !shouldAutoLocate("denied", "browse"), "do not locate when the user chose browse");
     check(!shouldAutoLocate("denied", "share"), "denied never auto-locates");
     check(shouldAskForLocation("prompt", null) && shouldAskForLocation("unknown", null), "ask when permission is unset");
     check(!shouldAskForLocation("granted", null) && !shouldAskForLocation("denied", null), "do not ask after a decision");

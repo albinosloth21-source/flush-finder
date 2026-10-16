@@ -184,10 +184,12 @@ export function FinderApp() {
         setBounds(boundsFromView(start));
         setFlyTo({ seq: Date.now(), lat: start.lat, lng: start.lng, zoom: start.zoom });
         setLocationPrompt(false);
-      } catch {
+      } catch (err) {
         if (cancelled) return;
         if (manual) applySpot(manual);
         else setLocationPrompt(shouldAskForLocation(permission, choice));
+        // They asked for location this session: say why it failed instead of silently showing the US map.
+        if (!manual && choice === "share") setLocationHelp(locationHelpFor(err));
       } finally {
         if (!cancelled) setLocating(false);
       }
