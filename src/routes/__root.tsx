@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { FeedbackHost } from "@/components/feedback-sheet";
 import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 import { useState } from "react";
 import { AuthProvider } from "@/lib/auth/provider";
@@ -67,6 +68,7 @@ function RootComponent() {
               "font-sans border-0 bg-surface text-foreground shadow-[var(--shadow-border)]",
           }}
         />
+        <FeedbackHost />
         <Scripts />
       </body>
     </html>
