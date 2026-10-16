@@ -1,6 +1,6 @@
 import { lazy, Suspense, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { LocateFixed, LoaderCircle, Plus, Search, X, ChevronDown } from "lucide-react";
+import { LocateFixed, Plus, Search, X, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import {
   AddBathroomForm,
@@ -12,6 +12,12 @@ import {
 import { LogoMark, Wordmark } from "@/components/toilet-mark";
 import { InstallPrompt } from "@/components/install-prompt";
 import { HeaderAccount } from "@/components/account-bar";
+import { FirstRunIntro, useIntroOpenEvent } from "@/components/first-run-intro";
+import { HelpMenu } from "@/components/help-menu";
+import { setFeedbackMapCenter } from "@/components/feedback-sheet";
+import { FlushLoader, FlushLoaderLogo } from "@/components/flush-loader";
+import { celebratePoints, playFlush } from "@/lib/throne-fx";
+import { introSeen } from "@/lib/feedback";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -130,6 +136,19 @@ export function FinderApp() {
   const [reviewDragY, setReviewDragY] = useState(0);
   const boundsTicks = useRef(0);
   const { user, isPending: authPending } = usePersistentUser();
+  // First-run intro runs before the location choice. null = not read yet (SSR/first paint).
+  const [introReady, setIntroReady] = useState<boolean | null>(null);
+  const [introOpen, setIntroOpen] = useState(false);
+  useEffect(() => {
+    const seen = introSeen();
+    setIntroOpen(!seen);
+    setIntroReady(seen);
+  }, []);
+  useIntroOpenEvent(() => setIntroOpen(true));
+  useEffect(() => {
+    if (!bounds) return;
+    setFeedbackMapCenter({ lat: (bounds.north + bounds.south) / 2, lng: (bounds.east + bounds.west) / 2 });
+  }, [bounds]);
 
   const reviewerQuery = useQuery({
     queryKey: ["reviewer", user?.id],
@@ -139,6 +158,7 @@ export function FinderApp() {
   });
 
   useEffect(() => {
+    if (!introReady) return;
     let cancelled = false;
     void (async () => {
       const choice = readLocationChoice();
@@ -173,7 +193,7 @@ export function FinderApp() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [introReady]);
 
   function rememberBounds(next: MapBounds) {
     boundsTicks.current += 1;
@@ -265,6 +285,8 @@ export function FinderApp() {
       setSelected(result.bathroom);
       setView("detail");
       setExpanded(true);
+      playFlush();
+      if (result.pointsEarned) celebratePoints(result.pointsEarned);
       toast.success(result.pointsEarned ? `Review posted · +${result.pointsEarned} pts` : "Review posted");
     },
     onError: (err) => {
@@ -295,6 +317,7 @@ export function FinderApp() {
       setSelected(room);
       setView("review");
       setExpanded(true);
+      if (result.nationwide && result.pointsEarned) celebratePoints(result.pointsEarned);
       toast.success(
         result.nationwide
           ? result.pointsEarned
@@ -483,7 +506,7 @@ export function FinderApp() {
 
   return (
     <div className="relative h-dvh overflow-hidden bg-background" data-ff-start={userLocation ? "here" : "us"}>
-      <Suspense fallback={<div className="h-full w-full bg-foreground/10" />}>
+      <Suspense fallback={<div className="grid h-full w-full place-items-center bg-foreground/10"><FlushLoaderLogo label="Loading the map" /></div>}>
         <MapCanvas
           bathrooms={filtered}
           selectedId={selectedId}
@@ -568,7 +591,7 @@ export function FinderApp() {
               aria-label="Re-center to my location"
               title="Re-center"
             >
-              {locating ? <LoaderCircle className="size-4 animate-spin" /> : <LocateFixed className="size-4" />}
+              {locating ? <FlushLoader className="size-4" /> : <LocateFixed className="size-4" />}
             </Button>
             <Button
               variant="outline"
@@ -592,6 +615,7 @@ export function FinderApp() {
             >
               <Plus className="size-4" />
             </Button>
+            <HelpMenu />
             <HeaderAccount />
           </div>
           {searchOpen && (placeQuery.data?.length || FEATURED_PLACES.length) ? (
@@ -637,7 +661,7 @@ export function FinderApp() {
                 Start on you, or browse the United States.
               </p>
               <Button size="sm" onClick={locate} disabled={locating}>
-                {locating ? <LoaderCircle className="size-4 animate-spin" /> : <LocateFixed className="size-4" />}
+                {locating ? <FlushLoader className="size-4" /> : <LocateFixed className="size-4" />}
                 Use my location
               </Button>
               <Button size="sm" variant="outline" onClick={skipLocation} disabled={locating}>
@@ -707,7 +731,7 @@ export function FinderApp() {
 
       {pinBusy ? (
         <div className="ff-sheet pointer-events-none fixed top-[22%] left-1/2 z-[300] flex -translate-x-1/2 items-center gap-2 rounded-full bg-surface px-4 py-2.5 text-sm font-medium shadow-[var(--shadow-border)]">
-          <LoaderCircle className="size-4 animate-spin" />
+          <FlushLoader className="size-4" />
           Opening reviews
         </div>
       ) : null}
@@ -1021,6 +1045,14 @@ export function FinderApp() {
         </div>
       ) : null}
       <InstallPrompt />
+      {introOpen ? (
+        <FirstRunIntro
+          onDone={() => {
+            setIntroOpen(false);
+            setIntroReady(true);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

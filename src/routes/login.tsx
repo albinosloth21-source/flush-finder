@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { FlushLoader, FlushLoaderLogo } from "@/components/flush-loader";
 import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { GROK_PROVIDERS, appleSignInVisible, authClient, authEnabled, emailCodeSignInVisible, signIn } from "@/lib/auth/client";
 import { APPLE_PROVIDER_ID } from "@/lib/auth/apple";
@@ -54,7 +55,7 @@ function Login() {
   if (isPending) {
     return (
       <main className="grid min-h-dvh place-items-center bg-background">
-        <div className="h-10 w-48 animate-pulse rounded-md bg-foreground/8" />
+        <FlushLoaderLogo label="Checking your seat…" />
       </main>
     );
   }
@@ -273,6 +274,7 @@ function Login() {
             </div>
             {error ? <p className="text-sm text-danger">{error}</p> : null}
             <Button type="submit" disabled={busy || !authEnabled}>
+              {busy ? <FlushLoader className="size-4" /> : null}
               {mode === "signup" ? "Create account" : "Sign in with email"}
             </Button>
           </form>

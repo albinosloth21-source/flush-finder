@@ -9,6 +9,9 @@ import { BadgeChip } from "@/components/badge-chip";
 import { Button } from "@/components/ui/button";
 import { PrivacyChoicesControl } from "@/components/privacy-choices";
 import { PrivacyPolicyText } from "@/components/privacy-policy";
+import { FeedbackButton } from "@/components/feedback-sheet";
+import { openIntro } from "@/components/first-run-intro";
+import { flushSoundOn, nextTitleProgress, playFlush, setFlushSound } from "@/lib/throne-fx";
 import { BADGES, getBadge } from "@/lib/badges";
 import { deleteMyAccount } from "@/lib/account-delete";
 import {
@@ -76,6 +79,7 @@ function GuestAccount() {
       <Button asChild className="mt-4">
         <Link to="/login">Sign in</Link>
       </Button>
+      <HelpAndFeedback />
     </div>
   );
 }
@@ -249,8 +253,11 @@ function AccountBody({ user }: { user: AppUser }) {
               ) : null}
             </section>
 
+            <HelpAndFeedback />
+
             <section className="mt-5">
               <h2 className="font-display text-xl font-semibold">Title shop</h2>
+              {walletBusy ? null : <TitleProgress points={points} owned={owned} />}
               <p className="mt-1 text-sm text-muted">{BADGES.length} titles. Scroll the list. Price is in points.</p>
               <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1">
                 {FILTERS.map((id) => (
@@ -306,5 +313,67 @@ function AccountBody({ user }: { user: AppUser }) {
         </div>
       </div>
     </>
+  );
+}
+
+function FlushSoundToggle() {
+  const [on, setOn] = useState(() => flushSoundOn());
+  return (
+    <label className="mt-3 flex items-center justify-between gap-3 text-sm">
+      <span>
+        Flush sound when I post a review
+        <span className="block text-[0.75rem] text-muted">Off by default. A soft whoosh, nothing gross.</span>
+      </span>
+      <input
+        type="checkbox"
+        role="switch"
+        className="size-5 accent-[#a67c1b]"
+        checked={on}
+        onChange={(e) => {
+          setFlushSound(e.target.checked);
+          setOn(e.target.checked);
+          if (e.target.checked) playFlush(true);
+        }}
+      />
+    </label>
+  );
+}
+
+function TitleProgress({ points, owned }: { points: number; owned: Set<string> }) {
+  const next = nextTitleProgress(points, owned, BADGES);
+  if (!next) return <p className="mt-2 text-sm text-muted">You own every title. Long live the king of the throne.</p>;
+  return (
+    <div className="mt-3">
+      <div className="flex justify-between text-[0.75rem] text-muted">
+        <span>Next: {next.title}</span>
+        <span>{next.remaining > 0 ? `${next.remaining} pts to go` : "Ready to buy!"}</span>
+      </div>
+      <div
+        className="ff-tp-bar mt-1"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={next.cost}
+        aria-valuenow={Math.min(points, next.cost)}
+        aria-label={`Points toward ${next.title}`}
+      >
+        <span style={{ width: `${Math.round(next.ratio * 100)}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function HelpAndFeedback() {
+  return (
+    <section className="mt-5 rounded-[var(--radius-xl)] bg-surface p-3">
+      <h2 className="font-display text-lg font-semibold">Help &amp; feedback</h2>
+      <p className="mt-1 text-sm text-muted">Spotted a bug or have an idea? Testers, this is the fastest way to reach us.</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <FeedbackButton />
+        <Button variant="ghost" onClick={openIntro}>
+          Replay the intro
+        </Button>
+      </div>
+      <FlushSoundToggle />
+    </section>
   );
 }

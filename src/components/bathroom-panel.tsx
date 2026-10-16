@@ -5,7 +5,7 @@ import {
   ChevronLeft,
   Clock,
   Footprints,
-  LoaderCircle,
+  Crown,
   MapPinOff,
   MapPinned,
   Navigation,
@@ -39,6 +39,8 @@ import type { AccessType, Bathroom, Review, VenueKind, WalkingRoute } from "@/li
 import { CIVIL_COPY, isCivil } from "@/lib/moderation";
 import { reviewPoints } from "@/lib/badges";
 import { overallScore } from "@/lib/toilet-score";
+import { FlushLoader } from "@/components/flush-loader";
+import { isGoldenThrone } from "@/lib/throne-fx";
 import { cn } from "@/lib/utils";
 
 export type NearbyFilter =
@@ -168,8 +170,9 @@ export function NearbyList({
         </h2>
       </div>
       {loading ? (
-        <p className="sr-only" aria-live="polite">
-          Loading restrooms
+        <p className="mt-1 flex items-center gap-2 text-[0.75rem] text-muted" aria-live="polite">
+          <FlushLoader className="size-4" />
+          Snooping for restrooms…
         </p>
       ) : null}
       <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
@@ -192,7 +195,7 @@ export function NearbyList({
               ? "Share your location or zoom into your state to see restrooms nearby."
               : filter === "park"
                 ? "No park restrooms pinned yet. Drop a pin on the actual stall — not the park entrance — to earn points."
-                : "No restrooms in this view yet."}
+                : "No thrones in sight… try zooming out or dragging the map."}
           </li>
         ) : null}
         {bathrooms.map((room) => (
@@ -203,7 +206,12 @@ export function NearbyList({
               className="flex w-full items-start gap-3 rounded-[var(--radius-lg)] px-2 py-2 text-left hover:bg-foreground/5"
             >
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{room.name}</p>
+                <p className="flex items-center gap-1 font-medium">
+                  <span className="truncate">{room.name}</span>
+                  {isGoldenThrone(room.avgRating, room.reviewCount) ? (
+                    <Crown className="ff-crown size-4 shrink-0" aria-label="Golden Throne: rated five toilets" />
+                  ) : null}
+                </p>
                 <p className="text-[0.75rem] text-muted">{ratingCaption(room.avgRating, room.reviewCount)}</p>
                 <div className="mt-1 flex flex-wrap gap-1">
                   <span className={cn("ff-kind-chip", `is-${room.kind}`)}>{VENUE_LABELS[room.kind]}</span>
@@ -342,7 +350,12 @@ export function BathroomDetail({
           <p className="text-[0.6875rem] font-medium tracking-[0.16em] text-muted uppercase">
             {VENUE_LABELS[bathroom.kind]} restroom
           </p>
-          <h2 className="font-display mt-0.5 text-2xl font-semibold tracking-tight text-balance">{bathroom.name}</h2>
+          <h2 className="font-display mt-0.5 text-2xl font-semibold tracking-tight text-balance">
+            {bathroom.name}
+            {isGoldenThrone(bathroom.avgRating, bathroom.reviewCount) ? (
+              <Crown className="ff-crown ml-1.5 inline size-5 align-[-0.1em]" aria-label="Golden Throne: rated five toilets" />
+            ) : null}
+          </h2>
         </div>
         <div className="flex shrink-0 items-start gap-1">
           {canDeleteMine ? (
@@ -353,7 +366,7 @@ export function BathroomDetail({
               disabled={removing}
               onClick={() => onRemove("gone")}
             >
-              {removing ? <LoaderCircle className="size-4 animate-spin" /> : <MapPinOff className="size-4" />}
+              {removing ? <FlushLoader className="size-4" /> : <MapPinOff className="size-4" />}
               Remove pin
             </Button>
           ) : null}
@@ -416,7 +429,7 @@ export function BathroomDetail({
 
         <div className="mt-4 grid grid-cols-2 gap-2">
           <Button onClick={onWalk} disabled={routing || !origin} className="col-span-2">
-            {routing ? <LoaderCircle className="size-4 animate-spin" /> : <Footprints className="size-4" />}
+            {routing ? <FlushLoader className="size-4" /> : <Footprints className="size-4" />}
             {route ? formatWalk(route.durationSeconds) : "Walk there"}
           </Button>
           <Button variant="outline" onClick={() => onOpenMaps("google")}>
@@ -570,7 +583,7 @@ export function BathroomDetail({
                   Keep it
                 </Button>
                 <Button variant="outline" onClick={() => onRemove(reason)} disabled={removing}>
-                  {removing ? <LoaderCircle className="size-4 animate-spin" /> : <MapPinOff className="size-4" />}
+                  {removing ? <FlushLoader className="size-4" /> : <MapPinOff className="size-4" />}
                   Remove pin
                 </Button>
               </div>
@@ -709,7 +722,7 @@ export function ReviewForm({
           disabled={removing}
           onClick={onRemove}
         >
-          {removing ? <LoaderCircle className="size-4 animate-spin" /> : <MapPinOff className="size-4" />}
+          {removing ? <FlushLoader className="size-4" /> : <MapPinOff className="size-4" />}
           Wrong pin? Remove it
         </Button>
       ) : null}
@@ -864,7 +877,7 @@ export function ReviewForm({
       </div>
       <p className="mt-3 text-[0.75rem] text-muted">This review earns {points} pts toward titles.</p>
       <Button type="submit" className="mt-4" disabled={busy || !civil}>
-        {busy ? <LoaderCircle className="size-4 animate-spin" /> : null}
+        {busy ? <FlushLoader className="size-4" /> : null}
         Post review
       </Button>
     </form>
@@ -1011,7 +1024,7 @@ export function AddBathroomForm({
         {!civil ? <p className="text-[0.75rem] text-danger">{CIVIL_COPY}</p> : null}
       </div>
       <Button type="submit" className="mt-4" disabled={busy || !civil || name.trim().length < 2}>
-        {busy ? <LoaderCircle className="size-4 animate-spin" /> : null}
+        {busy ? <FlushLoader className="size-4" /> : null}
         Save and review
       </Button>
     </form>
