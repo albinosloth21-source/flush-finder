@@ -16,7 +16,7 @@
     "preview:stop": "node scripts/preview.mjs stop",
     "typecheck": "tsc --noEmit",
     "check:auth": "node scripts/check-auth-invariant.mjs",
-    "test": "node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/app-data/readiness-schedule.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/lib/flush-finder.test.ts src/lib/auth/direct-providers.test.ts src/lib/golden-throne.test.ts src/lib/restroom-tiles.test.ts",
+    "test": "node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/app-data/readiness-schedule.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/lib/flush-finder.test.ts src/lib/auth/direct-providers.test.ts src/lib/golden-throne.test.ts src/lib/restroom-tiles.test.ts src/lib/road-trip.test.ts",
     "lint": "eslint .",
     "format": "prettier --write .",
     "cap:sync": "npx cap sync",
