@@ -65,8 +65,71 @@ export function isFramed(): boolean {
   return typeof window !== "undefined" && locationContext().framed;
 }
 
+/**
+ * getCurrentPosition with a hard watchdog: some iOS/Android webviews never call back at all.
+ * Note iOS Safari starts the `timeout` clock while its permission prompt is still on screen,
+ * so timeouts must be long enough for a person to read and tap "Allow".
+ */
 function webPosition(opts: PositionOptions): Promise<GeolocationPosition> {
-  return new Promise((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, opts));
+  return new Promise((resolve, reject) => {
+    let done = false;
+    const guard = window.setTimeout(() => {
+      if (done) return;
+      done = true;
+      reject({ code: 3, message: "watchdog timeout" });
+    }, (opts.timeout ?? 15_000) + 5_000);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        if (done) return;
+        done = true;
+        window.clearTimeout(guard);
+        resolve(pos);
+      },
+      (err) => {
+        if (done) return;
+        done = true;
+        window.clearTimeout(guard);
+        reject(err);
+      },
+      opts,
+    );
+  });
+}
+
+/** Web location timing (exported for tests). Coarse first: Wi-Fi/cell answers in ~1s, cold GPS can take 10s+. */
+export const WEB_LOCATION_COARSE: PositionOptions = { enableHighAccuracy: false, timeout: 10_000, maximumAge: 300_000 };
+export const WEB_LOCATION_WATCH: PositionOptions = { enableHighAccuracy: true, timeout: 30_000, maximumAge: 60_000 };
+export const WEB_LOCATION_WATCH_MS = 30_000;
+
+/** Keep listening (watchPosition) until the first fix of any accuracy arrives, up to WEB_LOCATION_WATCH_MS. */
+function watchFirstPosition(): Promise<GeolocationPosition> {
+  return new Promise((resolve, reject) => {
+    let id: number | null = null;
+    let lastErr: unknown = { code: 3, message: "watch timeout" };
+    const stop = () => {
+      if (id != null) navigator.geolocation.clearWatch(id);
+      window.clearTimeout(guard);
+    };
+    const guard = window.setTimeout(() => {
+      stop();
+      reject(lastErr);
+    }, WEB_LOCATION_WATCH_MS);
+    id = navigator.geolocation.watchPosition(
+      (pos) => {
+        stop();
+        resolve(pos);
+      },
+      (err) => {
+        lastErr = err;
+        // Denied will not change; timeouts / unavailable keep waiting for the next update.
+        if (err?.code === 1) {
+          stop();
+          reject(err);
+        }
+      },
+      WEB_LOCATION_WATCH,
+    );
+  });
 }
 
 async function browserPosition(): Promise<{ lat: number; lng: number }> {
@@ -74,13 +137,11 @@ async function browserPosition(): Promise<{ lat: number; lng: number }> {
   const pre = preflightLocation({ ...ctx, native: false, hasGeolocation: Boolean(navigator.geolocation) });
   if (pre) throw pre;
   try {
-    const pos = await webPosition({ enableHighAccuracy: true, timeout: 3500, maximumAge: 30_000 }).catch(
-      (first: GeolocationPositionError) => {
-        // A denial will not change on retry; only retry timeouts / unavailable.
-        if (first?.code === 1) throw first;
-        return webPosition({ enableHighAccuracy: false, timeout: 6000, maximumAge: 120_000 });
-      },
-    );
+    const pos = await webPosition(WEB_LOCATION_COARSE).catch((first: GeolocationPositionError) => {
+      // A denial will not change on retry; on timeout / unavailable keep listening instead of failing.
+      if (first?.code === 1) throw first;
+      return watchFirstPosition();
+    });
     return { lat: pos.coords.latitude, lng: pos.coords.longitude };
   } catch (err) {
     throw classifyGeolocationError(err, ctx);
