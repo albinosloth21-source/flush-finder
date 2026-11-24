@@ -1,0 +1,13 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appIDs": ["TODOTEAMID.com.flushfinder.app"],
+        "components": [
+          { "/": "/*" }
+        ]
+      }
+    ]
+  }
+}

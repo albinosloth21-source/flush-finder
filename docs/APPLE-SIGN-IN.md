@@ -23,5 +23,5 @@ Code is ready and **off** until these are set. Apple requires this button on iOS
 ## Behavior
 - Button "Continue with Apple" shows on the web and iOS; hidden on Android and inside the Grok Build preview (Apple's redirect cannot finish in the preview iframe).
 - Apple may hide the user's email (private relay address). That's expected.
-- In the iOS app this uses the web redirect flow inside the WebView. A native Apple sheet (Capacitor plugin) is a later improvement; App Review generally accepts the web flow.
-- Add the **Sign in with Apple** capability to the iOS target in Xcode (Signing & Capabilities) before archiving.
+- In the iPhone app (`ios/FlushFinder.xcodeproj`) Continue with Apple opens the system Apple sheet. The identity token is posted to `/api/auth/sign-in/social`. Google and X open in the system browser (`ASWebAuthenticationSession`), not in the page WebView. See `docs/app-store.md`.
+- The Sign in with Apple entitlement is already on that target. The co-helper still turns the capability on for the App ID in the developer account and sets the Team ID in `ios/Signing.xcconfig`.
