@@ -36,7 +36,7 @@ export function DeleteMyAccount({ heading = "Delete my account" }: { heading?: s
           </Link>
         </Button>
         <p className="mt-3 text-[0.75rem] text-subtle">
-          Can’t sign in? Email {PRIVACY_CONTACT_EMAIL}. TODO: replace that placeholder address.
+          Can’t sign in? Email {PRIVACY_CONTACT_EMAIL}.
         </p>
       </div>
     );

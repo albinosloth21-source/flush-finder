@@ -1837,7 +1837,7 @@ describe("store readiness", () => {
     assert.match(policy, /Google/);
     assert.match(policy, /Apple/);
     assert.match(policy, /one-time codes/);
-    assert.match(policy, /TODO/);
+    assert.match(policy, /PRIVACY_CONTACT_EMAIL/);
     assert.match(policy, /\/delete-account/);
     const deletion = readFileSync(new URL("./account-delete.ts", import.meta.url), "utf8");
     assert.match(deletion, /review_reports/);

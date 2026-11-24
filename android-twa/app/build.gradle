@@ -75,9 +75,9 @@ tasks.matching { it.name == "bundleRelease" || it.name == "assembleRelease" }.co
                 "Set productionUrl and host in native/production-url.json to the live Render origin before a release build. Current host: ${hostName}"
             )
         }
-        if (!keystorePropertiesFile.exists()) {
+        if (!keystorePropertiesFile.exists() && !project.hasProperty("ffAllowUnsigned")) {
             throw new GradleException(
-                "Missing android-twa/keystore.properties. Copy keystore.properties.example and point storeFile at the upload keystore. Do not commit it."
+                "Missing android-twa/keystore.properties. Copy keystore.properties.example and point storeFile at the upload keystore. Do not commit it. Pass -PffAllowUnsigned=true only for a local unsigned check."
             )
         }
     }

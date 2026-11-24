@@ -14,6 +14,7 @@ import {
   type FeedbackKind,
 } from "@/lib/feedback";
 import { sendFeedback } from "@/lib/feedback-fn";
+import { PRIVACY_CONTACT_EMAIL } from "@/lib/constants";
 import { usePersistentUser } from "@/lib/session-keep";
 import { cn } from "@/lib/utils";
 
@@ -185,7 +186,11 @@ function FeedbackSheet({ onClose }: { onClose: () => void }) {
 
         <p className="mt-3 text-[0.7rem] leading-snug text-[#e9e2cf]/60">
           We also attach the app version, the screen you're on, your browser type, and the rough map area you're
-          viewing (never your location).
+          viewing (never your location). You can also write{" "}
+          <a className="underline-offset-4 hover:underline" href={`mailto:${PRIVACY_CONTACT_EMAIL}`}>
+            {PRIVACY_CONTACT_EMAIL}
+          </a>
+          .
         </p>
         {error ? <p className="mt-2 text-sm text-[#ffb4a8]" role="alert">{error}</p> : null}
 

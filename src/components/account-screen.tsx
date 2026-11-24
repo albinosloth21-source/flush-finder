@@ -11,6 +11,7 @@ import { PrivacyChoicesControl } from "@/components/privacy-choices";
 import { PrivacyPolicyText } from "@/components/privacy-policy";
 import { FeedbackButton } from "@/components/feedback-sheet";
 import { openIntro } from "@/components/first-run-intro";
+import { PRIVACY_CONTACT_EMAIL } from "@/lib/constants";
 import { flushSoundOn, nextTitleProgress, playFlush, setFlushSound } from "@/lib/throne-fx";
 import { BADGES, getBadge } from "@/lib/badges";
 import { DeleteMyAccount } from "@/components/delete-my-account";
@@ -330,7 +331,13 @@ function HelpAndFeedback() {
   return (
     <section className="mt-5 rounded-[var(--radius-xl)] bg-surface p-3">
       <h2 className="font-display text-lg font-semibold">Help &amp; feedback</h2>
-      <p className="mt-1 text-sm text-muted">Spotted a bug or have an idea? Testers, this is the fastest way to reach us.</p>
+      <p className="mt-1 text-sm text-muted">
+        Spotted a bug or have an idea? Testers, this is the fastest way to reach us. Or email{" "}
+        <a className="underline-offset-4 hover:underline" href={`mailto:${PRIVACY_CONTACT_EMAIL}`}>
+          {PRIVACY_CONTACT_EMAIL}
+        </a>
+        .
+      </p>
       <div className="mt-3 flex flex-wrap gap-2">
         <FeedbackButton />
         <Button variant="ghost" onClick={openIntro}>

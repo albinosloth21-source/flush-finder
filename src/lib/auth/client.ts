@@ -271,12 +271,9 @@ export async function endSessionNow(redirectTo = "/"): Promise<void> {
   window.location.replace(redirectTo);
 }
 
-/** Whether to render "Continue with Apple" (see `showAppleButton`). */
+/** Whether to render "Continue with Apple" from the client flag. Login uses the server check instead. */
 export function appleSignInVisible(): boolean {
   if (typeof window === "undefined") return false;
-  // The iPhone app always offers the system Apple sheet. Other social buttons
-  // are on the same screen, so Apple requires this one.
-  if (isFlushFinderIOSApp()) return true;
   const cap = (window as Window & { Capacitor?: { getPlatform?: () => string } }).Capacitor;
   const platform = cap?.getPlatform?.();
   return showAppleButton({

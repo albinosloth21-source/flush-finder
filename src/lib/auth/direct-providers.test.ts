@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { directProviderFor, directSocialConfigFromEnv, isProviderNotFound } from "./direct-providers.ts";
+import { signInMethodsFromEnv } from "./sign-in-methods.ts";
 
 test("no env -> no direct providers (Grok broker path unchanged)", () => {
   assert.deepEqual(directSocialConfigFromEnv({}), {});
@@ -27,4 +28,20 @@ test("PROVIDER_NOT_FOUND triggers broker fallback; other errors do not", () => {
   assert.equal(isProviderNotFound({ status: 404 }), true);
   assert.equal(isProviderNotFound({ status: 400, message: "bad" }), false);
   assert.equal(isProviderNotFound(null), false);
+});
+
+test("sign-in buttons follow env presence and never echo secrets", () => {
+  assert.deepEqual(signInMethodsFromEnv({}), { google: false, x: false, apple: false, emailCode: false });
+  const flags = signInMethodsFromEnv({
+    GOOGLE_CLIENT_ID: "gid",
+    GOOGLE_CLIENT_SECRET: "gsecret",
+    TWITTER_CLIENT_ID: "tid",
+    APPLE_CLIENT_ID: "aid",
+    APPLE_CLIENT_SECRET: "asecret",
+    RESEND_API_KEY: "rk",
+    EMAIL_FROM: "Flush Finder <noreply@example.com>",
+  });
+  assert.deepEqual(flags, { google: true, x: false, apple: true, emailCode: true });
+  assert.equal(JSON.stringify(flags).includes("gsecret"), false);
+  assert.equal(JSON.stringify(flags).includes("asecret"), false);
 });
