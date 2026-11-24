@@ -157,8 +157,31 @@ export function renderInstallPageHtml(template, { host, url } = {}) {
     .replaceAll("{{APP_URL}}", escapeHtml(stripInstallParams(url)));
 }
 
-export function renderWebManifest(hostHeader) {
+/** Home-screen icon for store builds. Preview keeps the platform icon. */
+export const FLUSH_FINDER_TOUCH_ICON = "/brand/apple-touch-icon.png";
+
+export function appleTouchIconHref(env) {
+  const e = env ?? (typeof process !== "undefined" ? process.env : {});
+  if (String(e?.FF_STORE_BUILD ?? "").trim() === "1") return FLUSH_FINDER_TOUCH_ICON;
+  return "/__grok/icon-180.png";
+}
+
+export function renderWebManifest(hostHeader, env) {
   const name = appNameFromHost(hostHeader);
+  const storeIcon = appleTouchIconHref(env) === FLUSH_FINDER_TOUCH_ICON;
+  const icons = storeIcon
+    ? [
+        { src: "/brand/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+        { src: "/brand/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+        { src: FLUSH_FINDER_TOUCH_ICON, sizes: "180x180", type: "image/png" },
+      ]
+    : [
+        {
+          src: "/__grok/icon-180.png",
+          sizes: "180x180",
+          type: "image/png",
+        },
+      ];
   return JSON.stringify(
     {
       name,
@@ -167,15 +190,9 @@ export function renderWebManifest(hostHeader) {
       start_url: "/",
       scope: "/",
       display: "standalone",
-      background_color: "#000000",
-      theme_color: "#000000",
-      icons: [
-        {
-          src: "/__grok/icon-180.png",
-          sizes: "180x180",
-          type: "image/png",
-        },
-      ],
+      background_color: storeIcon ? "#1e4f4a" : "#000000",
+      theme_color: storeIcon ? "#1e4f4a" : "#000000",
+      icons,
     },
     null,
     2,
@@ -187,7 +204,7 @@ export function grokPwaHeadTags(appName = DEFAULT_APP_NAME) {
     // Standalone display comes from the manifest ("display": "standalone");
     // the legacy *-web-app-capable metas it replaces are deliberately absent.
     ["manifest", '<link rel="manifest" href="/__grok/manifest.webmanifest">'],
-    ["apple-touch-icon", '<link rel="apple-touch-icon" href="/__grok/icon-180.png">'],
+    ["apple-touch-icon", `<link rel="apple-touch-icon" href="${appleTouchIconHref()}">`],
     [
       "apple-mobile-web-app-title",
       `<meta name="apple-mobile-web-app-title" content="${escapeHtml(appName)}">`,
@@ -476,11 +493,15 @@ export function injectGrokPwaHead(html, ctx = {}) {
   let next = stripShareMetaTags(html);
   const extensionsOn = readGrokExtensionsEnabled(host);
   if (!extensionsOn) next = stripGrokExtensionsScript(next);
+  const touchIcon = appleTouchIconHref();
+  if (touchIcon !== "/__grok/icon-180.png") {
+    next = next.replaceAll('href="/__grok/icon-180.png"', `href="${touchIcon}"`);
+  }
 
   const missing = grokPwaHeadTags(appName)
     .filter(([key]) => {
       if (key === "manifest") return !next.includes('href="/__grok/manifest.webmanifest"');
-      if (key === "apple-touch-icon") return !next.includes('href="/__grok/icon-180.png"');
+      if (key === "apple-touch-icon") return !next.includes(`href="${touchIcon}"`);
       return !next.includes(`name="${key}"`);
     })
     .map(([, tag]) => tag);

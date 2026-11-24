@@ -161,6 +161,15 @@ function AccountBody({ user }: { user: AppUser }) {
           <section className="ff-sheet rounded-[var(--radius-xl)] bg-surface p-4">
             <PrivacyChoicesControl signedIn />
             <PrivacyPolicyText />
+            <p className="mt-4 text-[0.75rem] text-subtle">
+              <Link to="/privacy" className="underline-offset-4 hover:underline">
+                Privacy
+              </Link>
+              <span aria-hidden="true"> · </span>
+              <Link to="/terms" className="underline-offset-4 hover:underline">
+                Terms
+              </Link>
+            </p>
           </section>
         </div>
 
