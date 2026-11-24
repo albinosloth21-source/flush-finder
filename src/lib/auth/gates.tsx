@@ -1,6 +1,8 @@
-import { useState, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Navigate } from "@tanstack/react-router";
-import { GROK_PROVIDERS, authEnabled, signIn, signOut } from "./client";
+import { authEnabled, signIn, signOut } from "./client";
+import { getSignInMethods } from "./sign-in-methods-fn";
+import { NO_SIGN_IN_METHODS, type SignInMethods } from "./sign-in-methods";
 import { hasGateSessionMarker } from "./gate-session-marker";
 import { resolveSignInGateState } from "./sign-in-gate";
 import { useCurrentUser, useCurrentUserState } from "./use-current-user";
@@ -64,13 +66,24 @@ export function SignInGate({
 }
 
 export function SignInButtons() {
+  const [methods, setMethods] = useState<SignInMethods>(NO_SIGN_IN_METHODS);
+  useEffect(() => {
+    void getSignInMethods()
+      .then(setMethods)
+      .catch(() => setMethods(NO_SIGN_IN_METHODS));
+  }, []);
+  const buttons = [
+    methods.apple ? { id: "apple", label: "Apple" } : null,
+    methods.google ? { id: "grok-google", label: "Google" } : null,
+    methods.x ? { id: "grok-x", label: "X" } : null,
+  ].filter((item): item is { id: string; label: string } => item !== null);
   return (
     <div className="flex w-full max-w-sm flex-col gap-2">
-      {GROK_PROVIDERS.map((p) => (
+      {buttons.map((p) => (
         <button
-          key={p.providerId}
+          key={p.id}
           type="button"
-          onClick={() => signIn(p.providerId, { callbackURL: "/" })}
+          onClick={() => signIn(p.id, { callbackURL: "/" })}
           className="w-full cursor-pointer rounded-md border border-neutral-300 px-4 py-2 hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
         >
           Continue with {p.label}

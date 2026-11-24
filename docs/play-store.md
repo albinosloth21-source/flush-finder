@@ -16,7 +16,7 @@ The project in `android-twa/` uses Google's `android-browser-helper` (the librar
 2. Create the upload keystore (below). Keep it outside the repo.
 3. Build the signed AAB and upload it to Play Console.
 4. Copy the **Play App Signing** SHA-256 into `sha256CertFingerprints`, run `npm run twa:sync` again, and redeploy so `https://flush-finder-hhbb.onrender.com/.well-known/assetlinks.json` matches. Until that file is live, the app still opens but Chrome shows the address bar.
-5. Replace `PRIVACY_CONTACT_EMAIL` in `src/lib/constants.ts` (marked TODO) and redeploy. Put the live `/privacy` and `/delete-account` URLs in Play Console.
+5. Put `https://flush-finder-hhbb.onrender.com/privacy` and `https://flush-finder-hhbb.onrender.com/delete-account` in Play Console. Support email: `MisfitSoftwareSupport@gmail.com` (`PRIVACY_CONTACT_EMAIL`).
 6. Finish the store listing, Data safety, content rating, and a closed test with 12 testers for 14 days.
 7. Confirm OAuth redirect URLs for the Render origin (see `docs/SIGN-IN-SETUP.md` and `docs/APPLE-SIGN-IN.md`). Do not copy `GROK_AUTH_*` secrets to Render.
 
@@ -70,22 +70,55 @@ Copy the SHA-256 line. In Play Console, after the first upload: App integrity �
 
 Copy `android-twa/keystore.properties.example` to `android-twa/keystore.properties` and point `storeFile` at the `.jks`. That file is gitignored.
 
-## Build the signed AAB
+## Build the signed AAB (Windows or Mac)
 
-On a machine with Android SDK 36 (Android Studio current release is enough):
+Install Android Studio (current release) and a JDK 17 or newer. Android Studio includes the SDK. Open Android Studio once so it downloads Android SDK 36.
+
+Create the upload keystore yourself. Do not commit the `.jks` or the passwords. This is the key you will keep; Play App Signing holds a different key.
+
+Mac or Linux:
 
 ```bash
-# edit native/production-url.json first
-npm run twa:sync
-cd android-twa
-./gradlew bundleRelease
+mkdir -p "$HOME/flush-finder-keys"
+keytool -genkeypair -v \
+  -keystore "$HOME/flush-finder-keys/flush-finder-upload.jks" \
+  -alias flushfinder \
+  -keyalg RSA -keysize 2048 -validity 10000
 ```
 
-Upload `android-twa/app/build/outputs/bundle/release/app-release.aab`.
+Windows (Command Prompt, JDK `keytool` on your PATH):
+
+```bat
+mkdir %USERPROFILE%\flush-finder-keys
+keytool -genkeypair -v ^
+  -keystore %USERPROFILE%\flush-finder-keys\flush-finder-upload.jks ^
+  -alias flushfinder ^
+  -keyalg RSA -keysize 2048 -validity 10000
+```
+
+Copy `android-twa/keystore.properties.example` to `android-twa/keystore.properties` (gitignored). Set `storeFile` to the full path of the `.jks`, and set the two passwords and `keyAlias=flushfinder`.
+
+Then, from the repo root:
+
+```bash
+# Mac / Linux
+sh scripts/build-android-release.sh
+```
+
+On Windows, use Android Studio: File → Open → the `android-twa` folder. Let Gradle sync (it needs SDK 36). Then Build → Generate Signed Bundle / APK → Android App Bundle → release, and choose that same `.jks`. Or from the Android Studio terminal, after `keystore.properties` exists:
+
+```bat
+cd android-twa
+gradlew.bat bundleRelease
+```
+
+The AAB is `android-twa/app/build/outputs/bundle/release/app-release.aab`. Upload that file. Without `keystore.properties` the helper script can still compile an unsigned AAB (`-PffAllowUnsigned=true`). Play Console rejects an unsigned bundle.
+
+`sh scripts/build-android-release.sh` never creates a keystore and never writes passwords into git.
 
 Bump `versionCode` in `native/production-url.json` on every upload. Play rejects a repeated code. `versionName` is the human version (`1.0.0`).
 
-`bundleRelease` fails if the host is put back to a placeholder such as `REPLACE_ME.example`, and it fails without `keystore.properties`. The current host is `flush-finder-hhbb.onrender.com`.
+`bundleRelease` fails if the host is put back to a placeholder such as `REPLACE_ME.example`. It also fails without `keystore.properties` unless you pass `-PffAllowUnsigned=true` (the helper script does that only when the properties file is missing). The current host is `flush-finder-hhbb.onrender.com`.
 
 16 KB memory pages: this project has no native `.so` of its own. Play's 16 KB requirement for updates is currently February 1, 2027. If Console warns, update Android Gradle Plugin and the browser-helper dependencies and rebuild.
 
@@ -101,7 +134,9 @@ Requirements: HTTP 200, `Content-Type: application/json`, no redirect to a login
 curl -sI "https://flush-finder-hhbb.onrender.com/.well-known/assetlinks.json"
 ```
 
-The statement uses relation `delegate_permission/common.handle_all_urls` and package `com.flushfinder.app`. The fingerprint placeholder starts with `TODO`. Replace it before you expect the URL bar to disappear. Confirm with Google's [asset links tester](https://developers.google.com/digital-asset-links/tools/generator).
+The statement uses relation `delegate_permission/common.handle_all_urls` and package `com.flushfinder.app`. The live file is `public/.well-known/assetlinks.json`, and the server route `/.well-known/assetlinks.json` serves that same file (`server/middleware/assetlinks.ts`).
+
+The fingerprint is still the placeholder `TODO:REPLACE_WITH_PLAY_APP_SIGNING_SHA256`. After the first upload, open Play Console → App integrity → App signing → **App signing key certificate** → SHA-256. Put that value in `sha256CertFingerprints` in `native/production-url.json` (you may also list the upload-key SHA-256 from `keytool -list -v`). Run `npm run twa:sync` and redeploy. Until the placeholder is replaced, Chrome keeps the address bar. Confirm with Google's [asset links tester](https://developers.google.com/digital-asset-links/tools/generator).
 
 ## "Made with Grok" pill
 

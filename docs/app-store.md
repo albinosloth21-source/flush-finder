@@ -101,7 +101,7 @@ Create the app in App Store Connect if it is not there: Apps → New App → iOS
 Fill in:
 
 - Privacy policy URL: `https://flush-finder-hhbb.onrender.com/privacy`
-- Support URL: the same site, or a page you control. The contact on the policy is still a TODO address until you replace `PRIVACY_CONTACT_EMAIL` in `src/lib/constants.ts`.
+- Support URL: `https://flush-finder-hhbb.onrender.com`. Support email: `MisfitSoftwareSupport@gmail.com` (`PRIVACY_CONTACT_EMAIL`).
 - Category: Navigation (or Travel).
 - Age rating: walk through the questionnaire with the answers below. The product is 16+.
 - Content rights: you are not using someone else's trademarked catalog as the brand. Map tiles are Esri and OpenStreetMap, used to show places.

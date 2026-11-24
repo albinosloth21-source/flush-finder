@@ -1,8 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { FlushLoader, FlushLoaderLogo } from "@/components/flush-loader";
 import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
-import { GROK_PROVIDERS, appleSignInVisible, authClient, authEnabled, emailCodeSignInVisible, signIn } from "@/lib/auth/client";
+import { authClient, authEnabled, signIn } from "@/lib/auth/client";
 import { APPLE_PROVIDER_ID } from "@/lib/auth/apple";
+import { NO_SIGN_IN_METHODS, type SignInMethods } from "@/lib/auth/sign-in-methods";
+import { getSignInMethods } from "@/lib/auth/sign-in-methods-fn";
 import { afterLoginPath } from "@/lib/after-login";
 import { AGE_CONFIRM_KEY, ageConfirmLabel, needsAgeConfirmation, parseAgeConfirmed } from "@/lib/age-gate";
 import { MIN_AGE } from "@/lib/constants";
@@ -23,13 +25,15 @@ function Login() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showApple, setShowApple] = useState(false);
+  const [methods, setMethods] = useState<SignInMethods>(NO_SIGN_IN_METHODS);
   const [ageOk, setAgeOk] = useState(false);
   const [codeEmailAddr, setCodeEmailAddr] = useState("");
   const [codeSent, setCodeSent] = useState(false);
   const [otp, setOtp] = useState("");
   useEffect(() => {
-    setShowApple(appleSignInVisible());
+    void getSignInMethods()
+      .then(setMethods)
+      .catch(() => setMethods(NO_SIGN_IN_METHODS));
     try {
       setAgeOk(parseAgeConfirmed(window.localStorage.getItem(AGE_CONFIRM_KEY)));
     } catch {
@@ -167,7 +171,7 @@ function Login() {
 
           {authEnabled ? (
             <div className="mt-4 grid gap-2">
-              {showApple ? (
+              {methods.apple ? (
                 <Button
                   type="button"
                   disabled={busy}
@@ -177,23 +181,22 @@ function Login() {
                   Continue with Apple
                 </Button>
               ) : null}
-              {GROK_PROVIDERS.map((provider) => (
-                <Button
-                  key={provider.providerId}
-                  type="button"
-                  variant="outline"
-                  disabled={busy}
-                  onClick={() => void onOAuth(provider.providerId)}
-                >
-                  Continue with {provider.label}
+              {methods.google ? (
+                <Button type="button" variant="outline" disabled={busy} onClick={() => void onOAuth("grok-google")}>
+                  Continue with Google
                 </Button>
-              ))}
+              ) : null}
+              {methods.x ? (
+                <Button type="button" variant="outline" disabled={busy} onClick={() => void onOAuth("grok-x")}>
+                  Continue with X
+                </Button>
+              ) : null}
             </div>
           ) : (
             <p className="mt-5 text-sm text-muted">Sign-in is disabled.</p>
           )}
 
-          {authEnabled && emailCodeSignInVisible ? (
+          {authEnabled && methods.emailCode ? (
             <form className="mt-4 grid gap-2" onSubmit={(event) => void onEmailCode(event)} data-ff-email-code="true">
               <Label htmlFor="code-email">Email me a sign-in code</Label>
               <Input

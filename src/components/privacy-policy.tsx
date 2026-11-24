@@ -129,8 +129,7 @@ export function PrivacyPolicyText() {
       <section>
         <h2 className="font-display text-lg font-semibold">8. Contact</h2>
         <p className="mt-2 text-muted">
-          TODO: replace this placeholder with the real {OPERATOR_NAME} support inbox before
-          publication. Until then the contact address is{" "}
+          Questions about this policy:{" "}
           <a className="text-foreground underline-offset-4 hover:underline" href={`mailto:${PRIVACY_CONTACT_EMAIL}`}>
             {PRIVACY_CONTACT_EMAIL}
           </a>
