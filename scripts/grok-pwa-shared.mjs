@@ -212,14 +212,32 @@ export function readGrokProjectId() {
  * keeps working. Off when VITE_GROK_EXTENSIONS=0 or for store/production builds
  * (FF_STORE_BUILD=1, set by `npm run build:store`).
  */
-export function grokExtensionsEnabledFor(env) {
-  const e = env ?? {};
-  if (String(e.FF_STORE_BUILD ?? "").trim() === "1") return false;
-  return String(e.VITE_GROK_EXTENSIONS ?? "").trim() !== "0";
+/** Preview hosts keep the pill. Any other host (Render, a custom domain) does not. */
+export function isGrokPreviewHost(host) {
+  const h = String(host ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/:\d+$/, "");
+  if (!h) return true;
+  if (h === "localhost" || h === "127.0.0.1" || h === "::1" || h === "[::1]") return true;
+  return h === "grok.me" || h.endsWith(".grok.me");
 }
 
-export function readGrokExtensionsEnabled() {
-  return grokExtensionsEnabledFor(typeof process !== "undefined" ? process.env : {});
+/**
+ * @param {Record<string, string | undefined> | null | undefined} [env]
+ * @param {string} [host]
+ * @returns {boolean}
+ */
+export function grokExtensionsEnabledFor(env, host) {
+  const e = env ?? {};
+  if (String(e.FF_STORE_BUILD ?? "").trim() === "1") return false;
+  if (String(e.VITE_GROK_EXTENSIONS ?? "").trim() === "0") return false;
+  if (host != null && String(host).trim() !== "" && !isGrokPreviewHost(host)) return false;
+  return true;
+}
+
+export function readGrokExtensionsEnabled(host) {
+  return grokExtensionsEnabledFor(typeof process !== "undefined" ? process.env : {}, host);
 }
 
 export function readXCreator() {
@@ -456,7 +474,8 @@ export function injectGrokPwaHead(html, ctx = {}) {
     documentTitle,
   );
   let next = stripShareMetaTags(html);
-  if (!readGrokExtensionsEnabled()) next = stripGrokExtensionsScript(next);
+  const extensionsOn = readGrokExtensionsEnabled(host);
+  if (!extensionsOn) next = stripGrokExtensionsScript(next);
 
   const missing = grokPwaHeadTags(appName)
     .filter(([key]) => {
@@ -471,7 +490,7 @@ export function injectGrokPwaHead(html, ctx = {}) {
     grokOgHeadTags({ host, appName, site, documentTitle, cwd }).join(""),
   );
 
-  if (readGrokExtensionsEnabled() && !next.includes("/grok-app-builder/extensions.js")) {
+  if (extensionsOn && !next.includes("/grok-app-builder/extensions.js")) {
     missing.push(...grokExtensionsHeadTags(projectId));
   } else if (projectId && !next.includes('name="grok-project-id"')) {
     missing.push(`<meta name="grok-project-id" content="${escapeHtml(projectId)}">`);

@@ -1776,6 +1776,8 @@ import {
 import { ageConfirmLabel, needsAgeConfirmation, parseAgeConfirmed } from "./age-gate.ts";
 import { MIN_AGE } from "./constants.ts";
 import { grokExtensionsEnabledFor } from "../../scripts/grok-pwa-shared.mjs";
+import { assetLinksDocument, loadProductionConfig } from "../../scripts/sync-twa-config.mjs";
+import { resolveSaleOptIn } from "./privacy-choices.ts";
 
 describe("store readiness", () => {
   it("Sign in with Apple stays off until configured", () => {
@@ -1796,6 +1798,9 @@ describe("store readiness", () => {
     assert.equal(grokExtensionsEnabledFor({ VITE_GROK_EXTENSIONS: "0" }), false);
     assert.equal(grokExtensionsEnabledFor({ FF_STORE_BUILD: "1" }), false);
     assert.equal(grokExtensionsEnabledFor({ FF_STORE_BUILD: "1", VITE_GROK_EXTENSIONS: "1" }), false);
+    assert.equal(grokExtensionsEnabledFor({}, "flush-finder.grok.me"), true);
+    assert.equal(grokExtensionsEnabledFor({}, "localhost:8080"), true);
+    assert.equal(grokExtensionsEnabledFor({}, "flush-finder.onrender.com"), false);
   });
 
   it("hides a review after enough distinct reports, respects moderation", () => {
@@ -1825,6 +1830,30 @@ describe("store readiness", () => {
     const policy = readFileSync(new URL("../components/privacy-policy.tsx", import.meta.url), "utf8");
     assert.match(policy, /\{MIN_AGE\} years of age/);
     assert.match(policy, /\{PRIVACY_SWITCH_LABEL\}/);
+    assert.match(policy, /Location is optional/);
+    assert.match(policy, /Google/);
+    assert.match(policy, /Apple/);
+    assert.match(policy, /one-time codes/);
+    assert.match(policy, /TODO/);
+    assert.match(policy, /\/delete-account/);
+    const deletion = readFileSync(new URL("./account-delete.ts", import.meta.url), "utf8");
+    assert.match(deletion, /review_reports/);
+    assert.match(deletion, /app_feedback/);
+    assert.match(deletion, /verification/);
+    const ui = readFileSync(new URL("../components/delete-my-account.tsx", import.meta.url), "utf8");
+    assert.match(ui, /Delete my account/);
+    const play = readFileSync(new URL("../../docs/play-store.md", import.meta.url), "utf8");
+    const short = play.match(/Short description \(80 characters max\)\n\n`([^`]+)`/);
+    assert.ok(short, "play-store.md needs a backticked short description");
+    assert.ok(short[1].length <= 80, `short description is ${short?.[1].length} chars`);
+    assert.equal(resolveSaleOptIn(true, false), false);
+    assert.equal(resolveSaleOptIn(true, true), true);
+    assert.equal(resolveSaleOptIn(false, false), false);
+    const config = loadProductionConfig();
+    const links = JSON.parse(readFileSync(new URL("../../public/.well-known/assetlinks.json", import.meta.url), "utf8"));
+    assert.deepEqual(links, assetLinksDocument(config));
+    assert.equal(links[0].target.package_name, "com.flushfinder.app");
+    assert.match(readFileSync(new URL("../../android-twa/app/build.gradle", import.meta.url), "utf8"), /targetSdk 36/);
     for (const f of ["../../docs/index.html", "../../native/store/listing.txt", "../../native/store/appstore/listing.txt"]) {
       const text = readFileSync(new URL(f, import.meta.url), "utf8");
       assert.match(text, /16/);

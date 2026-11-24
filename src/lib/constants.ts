@@ -1,6 +1,11 @@
 export const APP_NAME = "Flush Finder";
 export const APP_TAGLINE = "Local restrooms, rated in toilets.";
 export const SUPPORT_EMAIL = "MisfitSoftwareSupport@gmail.com";
+/**
+ * Public contact on the privacy policy and the delete-account page.
+ * TODO: replace with the real MisfitSoftware support inbox before Play submission.
+ */
+export const PRIVACY_CONTACT_EMAIL = "TODO-replace-with-support-email@example.com";
 export const OPERATOR_NAME = "Misfit Software";
 
 export const DEFAULT_CENTER = { lat: 32.33102, lng: -96.122 };

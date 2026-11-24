@@ -3,6 +3,7 @@ import { FlushLoader, FlushLoaderLogo } from "@/components/flush-loader";
 import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { GROK_PROVIDERS, appleSignInVisible, authClient, authEnabled, emailCodeSignInVisible, signIn } from "@/lib/auth/client";
 import { APPLE_PROVIDER_ID } from "@/lib/auth/apple";
+import { afterLoginPath } from "@/lib/after-login";
 import { AGE_CONFIRM_KEY, ageConfirmLabel, needsAgeConfirmation, parseAgeConfirmed } from "@/lib/age-gate";
 import { MIN_AGE } from "@/lib/constants";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
@@ -59,14 +60,14 @@ function Login() {
       </main>
     );
   }
-  if (user) return <Navigate to="/" />;
+  if (user) return <Navigate to={afterLoginPath()} />;
 
   async function onOAuth(providerId: string) {
     setError(null);
     if (ageBlocked("provider")) return;
     setBusy(true);
     try {
-      await signIn(providerId, { callbackURL: "/", errorCallbackURL: "/login" });
+      await signIn(providerId, { callbackURL: afterLoginPath(), errorCallbackURL: "/login" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign-in failed");
       setBusy(false);
@@ -92,7 +93,7 @@ function Login() {
       }
       const { error: otpError } = await authClient.signIn.emailOtp({ email: codeEmailAddr, otp: otp.trim() });
       if (otpError) throw new Error(otpError.message ?? "That code did not work");
-      window.location.href = "/";
+      window.location.href = afterLoginPath();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not continue");
       setBusy(false);
@@ -123,7 +124,7 @@ function Login() {
         rememberMe: true,
       });
       if (signInError) throw new Error(signInError.message ?? "Could not sign in");
-      window.location.href = "/";
+      window.location.href = afterLoginPath();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not continue");
       setBusy(false);

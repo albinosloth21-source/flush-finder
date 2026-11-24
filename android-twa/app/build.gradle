@@ -1,0 +1,90 @@
+plugins {
+    id "com.android.application"
+}
+
+def twaConfig = new groovy.json.JsonSlurper().parse(rootProject.file("../native/production-url.json"))
+def productionUrl = twaConfig.productionUrl.toString().trim().replaceAll(/\/$/, "")
+def hostName = twaConfig.host.toString().trim()
+def packageId = twaConfig.packageId.toString().trim()
+def assetStatements = groovy.json.JsonOutput.toJson([
+    [
+        relation: ["delegate_permission/common.handle_all_urls"],
+        target   : [namespace: "web", site: "https://${hostName}"],
+    ],
+])
+
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.withInputStream { keystoreProperties.load(it) }
+}
+
+android {
+    namespace "com.flushfinder.app"
+    compileSdk 36
+
+    defaultConfig {
+        applicationId packageId
+        minSdk 24
+        targetSdk 36
+        versionCode (twaConfig.versionCode as int)
+        versionName twaConfig.versionName.toString()
+        resValue "string", "launchUrl", productionUrl
+        resValue "string", "hostName", hostName
+        resValue "string", "assetStatements", assetStatements
+        resValue "string", "providerAuthority", "${packageId}.fileprovider"
+    }
+
+    signingConfigs {
+        release {
+            if (keystorePropertiesFile.exists()) {
+                storeFile rootProject.file(keystoreProperties.getProperty("storeFile"))
+                storePassword keystoreProperties.getProperty("storePassword")
+                keyAlias keystoreProperties.getProperty("keyAlias")
+                keyPassword keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+            if (keystorePropertiesFile.exists()) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = false
+        }
+    }
+}
+
+tasks.matching { it.name == "bundleRelease" || it.name == "assembleRelease" }.configureEach {
+    doFirst {
+        if (hostName.startsWith("REPLACE") || hostName.endsWith(".example") || !productionUrl.startsWith("https://")) {
+            throw new GradleException(
+                "Set productionUrl and host in native/production-url.json to the live Render origin before a release build. Current host: ${hostName}"
+            )
+        }
+        if (!keystorePropertiesFile.exists()) {
+            throw new GradleException(
+                "Missing android-twa/keystore.properties. Copy keystore.properties.example and point storeFile at the upload keystore. Do not commit it."
+            )
+        }
+    }
+}
+
+dependencies {
+    implementation "androidx.appcompat:appcompat:1.7.1"
+    implementation "com.google.androidbrowserhelper:androidbrowserhelper:2.7.4"
+    implementation "com.google.androidbrowserhelper:locationdelegation:1.1.2"
+}

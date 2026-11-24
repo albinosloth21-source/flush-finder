@@ -1,0 +1,9 @@
+{
+  "productionUrl": "https://REPLACE_ME.example",
+  "host": "REPLACE_ME.example",
+  "packageId": "com.flushfinder.app",
+  "appName": "Flush Finder",
+  "versionName": "1.0.0",
+  "versionCode": 1,
+  "sha256CertFingerprints": ["TODO:REPLACE_WITH_PLAY_APP_SIGNING_SHA256"]
+}

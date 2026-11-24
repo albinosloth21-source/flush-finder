@@ -80,4 +80,8 @@ export declare function createHeadInjector(ctx?: GrokHeadContext): {
   flush(): Uint8Array[];
 };
 
-export declare function grokExtensionsEnabledFor(env: Record<string, string | undefined> | undefined | null): boolean;
+export declare function isGrokPreviewHost(host: string | undefined | null): boolean;
+export declare function grokExtensionsEnabledFor(
+  env: Record<string, string | undefined> | undefined | null,
+  host?: string | null,
+): boolean;

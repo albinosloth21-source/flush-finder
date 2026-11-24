@@ -1,7 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { authMiddleware, optionalAuthMiddleware } from "@/lib/auth/middleware";
-import { DEFAULT_PRIVACY_CHOICES, normalizePrivacyChoices, parseAllowFlag, type PrivacyChoices } from "@/lib/privacy-choices";
+import {
+  DEFAULT_PRIVACY_CHOICES,
+  normalizePrivacyChoices,
+  parseAllowFlag,
+  resolveSaleOptIn,
+  type PrivacyChoices,
+} from "@/lib/privacy-choices";
 
 export const getPrivacyChoices = createServerFn({ method: "GET" })
   .middleware([optionalAuthMiddleware])
@@ -21,11 +27,13 @@ export const getPrivacyChoices = createServerFn({ method: "GET" })
 
 export const setPrivacyChoices = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator(z.object({ allowSaleAndAds: z.boolean() }))
+  .validator(z.object({ allowSaleAndAds: z.boolean(), ageAtLeastMin: z.boolean().optional() }))
   .handler(async ({ context, data }): Promise<PrivacyChoices> => {
     const { getSql } = await import("@/lib/db");
     const sql = await getSql();
-    const next = normalizePrivacyChoices(data);
+    const next = normalizePrivacyChoices({
+      allowSaleAndAds: resolveSaleOptIn(data.allowSaleAndAds, data.ageAtLeastMin === true),
+    });
     await sql.query(
       `insert into profiles (user_id, points, allow_sale_and_ads, allow_sale_and_ads_set_at) values ($1, 0, $2, now())
        on conflict (user_id) do update set allow_sale_and_ads = excluded.allow_sale_and_ads,

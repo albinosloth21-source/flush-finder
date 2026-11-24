@@ -19,6 +19,11 @@ ios/App/Pods/
 ios/App/build/
 *.keystore
 *.jks
+android-twa/keystore.properties
+android-twa/.gradle/
+android-twa/build/
+android-twa/app/build/
+android-twa/local.properties
 artifacts/
 tmp/
 flush-finder.zip

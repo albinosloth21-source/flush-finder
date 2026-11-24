@@ -24,7 +24,8 @@
     "ios:sync": "npx cap sync ios",
     "cap:android": "npx cap add android && npx cap sync android",
     "cap:ios": "npx cap add ios && npx cap sync ios",
-    "build:store": "FF_STORE_BUILD=1 VITE_GROK_EXTENSIONS=0 npm run build"
+    "build:store": "FF_STORE_BUILD=1 VITE_GROK_EXTENSIONS=0 npm run build",
+    "twa:sync": "node scripts/sync-twa-config.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.2",

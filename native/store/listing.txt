@@ -6,8 +6,8 @@ Application ID: com.flushfinder.app
 Default language: English (US)
 Category: Travel
 Tags: restroom, bathroom, map, travel, navigation
-Contact email: MisfitSoftwareSupport@gmail.com
-Privacy policy: https://albinosloth21-source.github.io/flush-finder/
+Contact email: TODO-replace-with-support-email@example.com
+Privacy policy: https://YOUR-HOST/privacy
 App website: https://albinosloth21-source.github.io/flush-finder/
 
 Age: 16+  (user-generated reviews; not directed at children under 16)  [keep in sync with MIN_AGE in src/lib/constants.ts]
@@ -54,24 +54,10 @@ Android permissions users see:
 - Location (precise / approximate) — nearby restrooms and walking directions only
 - Internet — load the map, reviews, and account
 
-How the Android app is built (Capacitor):
-The phone app is a native Android shell (com.flushfinder.app) that opens Flush Finder in a secure HTTPS WebView, with native location, splash, and status bar.
+How the Android app is built (Trusted Web Activity):
+Play should ship android-twa/, not the Capacitor WebView under android/. The production URL is native/production-url.json. Full steps, the upload keystore, Data safety, and the 12-tester closed test are in docs/play-store.md.
 
-You still need:
-1. A published web app URL (Update / republish Flush Finder first)
-2. A Google Play Developer account
-3. Android Studio on your computer
-4. A signing key you keep private
-
-On your computer, after the web app is live:
-
-  export CAPACITOR_SERVER_URL="https://YOUR-PUBLISHED-APP"
-  npx cap sync android
-  Open android/ in Android Studio
-  Build → Generate Signed Bundle / APK → Android App Bundle
-  Upload the .aab to Play Console (production track)
-
-Do not share your keystore. versionCode is 1, versionName is 1.0 for the first listing.
+Do not commit the keystore. versionCode lives in native/production-url.json and must go up on every upload.
 
 iPhone / App Store:
 Flush Finder is also wrapped for iOS (same app id com.flushfinder.app). See native/store/appstore/listing.txt for App Store copy, privacy nutrition labels, and Xcode archive steps.
