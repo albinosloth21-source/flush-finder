@@ -1,3 +1,5 @@
+import { iosHaptic } from "./ios-shell.ts";
+
 /** Golden Throne touches: pure helpers (unit-tested) + tiny browser effects. */
 import type { BadgeDef } from "./badges.ts";
 
@@ -56,6 +58,7 @@ export function setFlushSound(on: boolean, storage: KV | null = store()): void {
 /** Soft synthesized "whoosh" (filtered noise, ~0.9s). Only after a user action, only if enabled. */
 export function playFlush(force = false): void {
   if (typeof window === "undefined" || (!force && !flushSoundOn())) return;
+  iosHaptic("success");
   try {
     const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!Ctx) return;

@@ -1,6 +1,8 @@
 import { emailOTPClient, genericOAuthClient } from "better-auth/client/plugins";
 import { directProviderFor, isProviderNotFound } from "./direct-providers";
 import { APPLE_PROVIDER_ID, showAppleButton } from "./apple";
+import { IOS_AUTH_DONE_PATH } from "@/lib/ios-auth";
+import { iosSignInWithApple, iosStartAuth, isFlushFinderIOSApp } from "@/lib/ios-shell";
 import { createAuthClient } from "better-auth/react";
 import { runPreSignInSignOut, runSignOut } from "../../../scripts/sign-out-plan.mjs";
 import { GROK_PROVIDERS } from "./providers";
@@ -132,32 +134,47 @@ export async function signIn(
     return;
   }
 
-  if (providerId === APPLE_PROVIDER_ID) {
-    const { data, error } = await authClient.signIn.social({ provider: "apple", callbackURL, errorCallbackURL });
-    if (error) throw new Error(error.message ?? "Sign-in failed");
-    if (data?.url) window.location.href = data.url;
+  // iPhone app: Sign in with Apple is the system sheet. Google and X open in
+  // ASWebAuthenticationSession. Neither one runs inside the page's WebView.
+  if (isFlushFinderIOSApp()) {
+    if (providerId === APPLE_PROVIDER_ID) {
+      const token = await iosSignInWithApple();
+      setBearerToken(token);
+      window.location.href = callbackURL;
+      return;
+    }
+    const url = await providerRedirectURL(providerId, IOS_AUTH_DONE_PATH, `${IOS_AUTH_DONE_PATH}?error=1`);
+    const token = await iosStartAuth(url);
+    setBearerToken(token);
+    window.location.href = callbackURL;
     return;
   }
 
-  // Direct Google / X when the server has its own creds; PROVIDER_NOT_FOUND
-  // means it doesn't, so fall through to the Grok broker unchanged.
+  const url = await providerRedirectURL(providerId, callbackURL, errorCallbackURL);
+  window.location.href = url;
+}
+
+async function providerRedirectURL(providerId: string, callbackURL: string, errorCallbackURL: string): Promise<string> {
+  if (providerId === APPLE_PROVIDER_ID) {
+    const { data, error } = await authClient.signIn.social({ provider: "apple", callbackURL, errorCallbackURL });
+    if (error) throw new Error(error.message ?? "Sign-in failed");
+    if (!data?.url) throw new Error("Apple did not return a sign-in URL");
+    return data.url;
+  }
   const direct = directProviderFor(providerId, false);
   if (direct) {
     const res = await authClient.signIn.social({ provider: direct, callbackURL, errorCallbackURL });
-    if (!res.error && res.data?.url) {
-      window.location.href = res.data.url;
-      return;
-    }
+    if (!res.error && res.data?.url) return res.data.url;
     if (res.error && !isProviderNotFound(res.error)) throw new Error(res.error.message ?? "Sign-in failed");
   }
-
   const { data, error } = await authClient.signIn.oauth2({
     providerId,
     callbackURL,
     errorCallbackURL,
   });
   if (error) throw new Error(error.message ?? "Sign-in failed");
-  if (data?.url) window.location.href = data.url;
+  if (!data?.url) throw new Error("Sign-in did not return a URL");
+  return data.url;
 }
 
 /**
@@ -257,6 +274,9 @@ export async function endSessionNow(redirectTo = "/"): Promise<void> {
 /** Whether to render "Continue with Apple" (see `showAppleButton`). */
 export function appleSignInVisible(): boolean {
   if (typeof window === "undefined") return false;
+  // The iPhone app always offers the system Apple sheet. Other social buttons
+  // are on the same screen, so Apple requires this one.
+  if (isFlushFinderIOSApp()) return true;
   const cap = (window as Window & { Capacitor?: { getPlatform?: () => string } }).Capacitor;
   const platform = cap?.getPlatform?.();
   return showAppleButton({

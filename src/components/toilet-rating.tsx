@@ -1,4 +1,5 @@
 import { ToiletMark } from "@/components/toilet-mark";
+import { iosHaptic } from "@/lib/ios-shell";
 import { formatToiletScore, toiletFill, TOILET_MAX } from "@/lib/toilet-score";
 import { cn } from "@/lib/utils";
 
@@ -53,7 +54,10 @@ export function ToiletRating({
             aria-checked={Math.round(numeric ?? 0) === n}
             aria-label={`${n} toilet${n === 1 ? "" : "s"}`}
             className="grid size-11 place-items-center rounded-[var(--radius-sm)] transition-transform duration-[var(--motion-quick)] ease-[var(--ease-out)] hover:scale-105 focus-visible:ring-2 focus-visible:ring-ring/70"
-            onClick={() => onChange?.(n)}
+            onClick={() => {
+              iosHaptic(n >= 5 ? "success" : "light");
+              onChange?.(n);
+            }}
           >
             <ToiletGlyph fill={fill} size={size} />
           </button>
