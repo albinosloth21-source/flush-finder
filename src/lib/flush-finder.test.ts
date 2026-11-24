@@ -1775,7 +1775,7 @@ import {
 } from "./review-reports.ts";
 import { ageConfirmLabel, needsAgeConfirmation, parseAgeConfirmed } from "./age-gate.ts";
 import { MIN_AGE } from "./constants.ts";
-import { grokExtensionsEnabledFor } from "../../scripts/grok-pwa-shared.mjs";
+import { appleTouchIconHref, grokExtensionsEnabledFor } from "../../scripts/grok-pwa-shared.mjs";
 import { assetLinksDocument, loadProductionConfig } from "../../scripts/sync-twa-config.mjs";
 import { resolveSaleOptIn } from "./privacy-choices.ts";
 import { iosAuthLocation, parseNativeAuthCallback, IOS_SESSION_COOKIE } from "./ios-auth.ts";
@@ -1802,6 +1802,8 @@ describe("store readiness", () => {
     assert.equal(grokExtensionsEnabledFor({}, "flush-finder.grok.me"), true);
     assert.equal(grokExtensionsEnabledFor({}, "localhost:8080"), true);
     assert.equal(grokExtensionsEnabledFor({}, "flush-finder.onrender.com"), false);
+    assert.equal(appleTouchIconHref({}), "/__grok/icon-180.png");
+    assert.equal(appleTouchIconHref({ FF_STORE_BUILD: "1" }), "/brand/apple-touch-icon.png");
   });
 
   it("hides a review after enough distinct reports, respects moderation", () => {
