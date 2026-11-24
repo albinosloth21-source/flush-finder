@@ -7,7 +7,7 @@ Default language: English (US)
 Category: Travel
 Tags: restroom, bathroom, map, travel, navigation
 Contact email: TODO-replace-with-support-email@example.com
-Privacy policy: https://YOUR-HOST/privacy
+Privacy policy: https://flush-finder-hhbb.onrender.com/privacy
 App website: https://albinosloth21-source.github.io/flush-finder/
 
 Age: 16+  (user-generated reviews; not directed at children under 16)  [keep in sync with MIN_AGE in src/lib/constants.ts]

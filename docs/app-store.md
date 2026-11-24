@@ -20,7 +20,7 @@ Guideline 4.2 says an app has to be more than a website in a frame. This project
 
 Push notifications are not in this version. Add them later if you want them. Do not turn on a push entitlement until there is a server to send them.
 
-The only site address is `native/production-url.json`. The Xcode build copies that file into the app. If it is still `REPLACE_ME.example`, the app shows a native message instead of a blank page.
+The only site address is `native/production-url.json`. The Xcode build copies that file into the app. It is set to `https://flush-finder-hhbb.onrender.com`. If that host is changed back to a placeholder such as `REPLACE_ME.example`, the app shows a native message instead of a blank page.
 
 There is no Grok badge in the iPhone UI. The site shows that pill only on localhost and `*.grok.me`. The Render host must be built with `FF_STORE_BUILD=1` (see `docs/play-store.md`) so the page the app loads does not include it.
 
@@ -29,11 +29,11 @@ No certificate, profile, `.p8` key, or password belongs in git. The Team ID in `
 ## Before you open Xcode
 
 1. You need a Mac with a current Xcode (16 or newer), and an Apple Developer Program membership in your name.
-2. The website has to be live on https (Render + Neon). Set `productionUrl` and `host` in `native/production-url.json` to that origin. No trailing path.
+2. The website is live at `https://flush-finder-hhbb.onrender.com`. `productionUrl` and `host` in `native/production-url.json` already match that origin.
 3. On the server, set `FF_STORE_BUILD=1`, `BETTER_AUTH_URL` to that same origin, and the sign-in secrets from `docs/SIGN-IN-SETUP.md` and `docs/APPLE-SIGN-IN.md`. Do not copy `GROK_AUTH_*`.
 4. Sign in with Apple has to be turned on or the Apple button will fail, and App Review will reject the app because Google and X are on the same screen.
    - App ID: the bundle ID you ship (start with `com.flushfinder.app`) → enable Sign in with Apple.
-   - Services ID for the website, return URL `https://YOUR-HOST/api/auth/callback/apple`.
+   - Services ID for the website, return URL `https://flush-finder-hhbb.onrender.com/api/auth/callback/apple`.
    - Key (`.p8`) stays on your Mac. Generate the client secret JWT and put it in Render as `APPLE_CLIENT_SECRET`.
    - `APPLE_CLIENT_ID` is the Services ID for the website. `APPLE_APP_BUNDLE_IDENTIFIER` is the iPhone bundle ID, so the native Apple token checks out.
 5. Create one email account on the live site and confirm it. You will paste that login into App Review notes. Do not put the password in the repo.
@@ -49,7 +49,7 @@ No certificate, profile, `.p8` key, or password belongs in git. The Team ID in `
 7. Confirm the capability **Sign in with Apple** is listed. The entitlement file already asks for it. If Xcode shows a signing error, click the capability once so it registers the App ID.
 8. Plug in an iPhone, pick it as the run destination, and press Run. The first launch asks you to trust the developer certificate on the phone (Settings → General → VPN & Device Management).
 
-Set the production URL before this run. A placeholder host never loads the map.
+The production URL is already `https://flush-finder-hhbb.onrender.com`. A placeholder host never loads the map.
 
 ## What to try on the phone
 
@@ -69,8 +69,8 @@ This build does **not** use Associated Domains. Sign-in finishes on the custom U
 
 If you later want a https link to open the app:
 
-1. Replace `TODOTEAMID` in `public/.well-known/apple-app-site-association` with your Team ID. Redeploy. The file must be `https://YOUR-HOST/.well-known/apple-app-site-association` with content type `application/json` and no redirect.
-2. In Xcode, add the Associated Domains capability with `applinks:YOUR-HOST`.
+1. Replace `TODOTEAMID` in `public/.well-known/apple-app-site-association` with your Team ID. Redeploy. The file must be `https://flush-finder-hhbb.onrender.com/.well-known/apple-app-site-association` with content type `application/json` and no redirect.
+2. In Xcode, add the Associated Domains capability with `applinks:flush-finder-hhbb.onrender.com`.
 3. Archive again.
 
 Until you do that, leave the entitlement off. A wrong Team ID in that file does nothing while the capability is off.
@@ -100,7 +100,7 @@ Create the app in App Store Connect if it is not there: Apps → New App → iOS
 
 Fill in:
 
-- Privacy policy URL: `https://YOUR-HOST/privacy`
+- Privacy policy URL: `https://flush-finder-hhbb.onrender.com/privacy`
 - Support URL: the same site, or a page you control. The contact on the policy is still a TODO address until you replace `PRIVACY_CONTACT_EMAIL` in `src/lib/constants.ts`.
 - Category: Navigation (or Travel).
 - Age rating: walk through the questionnaire with the answers below. The product is 16+.
@@ -214,7 +214,7 @@ Flush Finder is a restroom map for people 16+. Guests can browse with no account
 
 Sign-in is optional. On iPhone, Sign in with Apple uses the system sheet. Google and X use the system browser (ASWebAuthenticationSession), not an in-app web view. Email and one-time codes stay on our page.
 
-Location is optional (While Using). Directions open Apple Maps. Account deletion is in the app: Account → Titles → Delete my account. The same page is on the website at https://YOUR-HOST/delete-account.
+Location is optional (While Using). Directions open Apple Maps. Account deletion is in the app: Account → Titles → Delete my account. The same page is on the website at https://flush-finder-hhbb.onrender.com/delete-account.
 
 Demo account for review (email already confirmed):
 Email: REPLACE_WITH_REVIEWER_EMAIL
