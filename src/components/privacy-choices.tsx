@@ -1,14 +1,26 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { setPrivacyChoices } from "@/lib/privacy-choices-fn";
+import { AGE_CONFIRM_KEY, parseAgeConfirmed } from "@/lib/age-gate";
+import { MIN_AGE } from "@/lib/constants";
 import {
   DEFAULT_PRIVACY_CHOICES,
   PRIVACY_SWITCH_LABEL,
   readLocalPrivacyChoices,
+  resolveSaleOptIn,
   writeLocalPrivacyChoices,
   type PrivacyChoices,
 } from "@/lib/privacy-choices";
 import { cn } from "@/lib/utils";
+
+function ageAtLeastMin(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return parseAgeConfirmed(window.localStorage.getItem(AGE_CONFIRM_KEY));
+  } catch {
+    return false;
+  }
+}
 
 export function PrivacyChoicesControl({
   className,
@@ -26,12 +38,18 @@ export function PrivacyChoicesControl({
   const allow = local.allowSaleAndAds;
 
   function toggle() {
-    const next = { allowSaleAndAds: !allow };
+    const turningOn = !allow;
+    const ofAge = ageAtLeastMin();
+    if (turningOn && !ofAge) {
+      toast.error(`Only people ${MIN_AGE} or older can turn this on. Confirm your age on the sign-in screen first.`);
+      return;
+    }
+    const next = { allowSaleAndAds: resolveSaleOptIn(turningOn, ofAge) };
     writeLocalPrivacyChoices(next);
     setLocal(next);
     toast.success(next.allowSaleAndAds ? "Personalized ads and data sale are on" : "Personalized ads and data sale are off");
     if (!signedIn) return;
-    void setPrivacyChoices({ data: next }).catch(() => {
+    void setPrivacyChoices({ data: { ...next, ageAtLeastMin: ofAge } }).catch(() => {
       /* local choice already saved */
     });
   }
@@ -42,8 +60,8 @@ export function PrivacyChoicesControl({
         <div className="min-w-0">
           <p className="text-sm font-medium">{PRIVACY_SWITCH_LABEL}</p>
           <p className="mt-1 text-[0.75rem] leading-relaxed text-muted">
-            This is also your “Do Not Sell My Personal Information” control. Turn it off to opt out
-            of sale, sharing, and ad targeting. Required map features still work.
+            Off by default. Only people {MIN_AGE} or older can turn it on. While it is off, Flush
+            Finder does not sell or share your account for ads. The map still works.
           </p>
         </div>
         <button

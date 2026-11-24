@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, Medal } from "lucide-react";
 import { toast } from "sonner";
-import { authEnabled, endSessionNow, signOut } from "@/lib/auth/client";
+import { authEnabled, signOut } from "@/lib/auth/client";
 import type { AppUser } from "@/lib/auth/use-current-user";
 import { BadgeChip } from "@/components/badge-chip";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ import { FeedbackButton } from "@/components/feedback-sheet";
 import { openIntro } from "@/components/first-run-intro";
 import { flushSoundOn, nextTitleProgress, playFlush, setFlushSound } from "@/lib/throne-fx";
 import { BADGES, getBadge } from "@/lib/badges";
-import { deleteMyAccount } from "@/lib/account-delete";
+import { DeleteMyAccount } from "@/components/delete-my-account";
 import {
   ACCOUNT_TABS,
   STARTER_BADGE_ID,
@@ -89,7 +89,6 @@ function AccountBody({ user }: { user: AppUser }) {
   const [tab, setTab] = useState<AccountTab>("titles");
   const [filter, setFilter] = useState<ShopFilter>("all");
   const [signingOut, setSigningOut] = useState(false);
-  const [deleteStep, setDeleteStep] = useState<"idle" | "confirm" | "working">("idle");
 
   const walletQuery = useQuery({
     queryKey: ["wallet", user.id],
@@ -191,7 +190,7 @@ function AccountBody({ user }: { user: AppUser }) {
                 <div className="mt-4 flex flex-col gap-2">
                   <Button
                     variant="outline"
-                    disabled={signingOut || deleteStep === "working"}
+                    disabled={signingOut}
                     onClick={() => {
                       setSigningOut(true);
                       clearKeptUser();
@@ -204,51 +203,7 @@ function AccountBody({ user }: { user: AppUser }) {
                   >
                     {signingOut ? "Signing out…" : "Sign out"}
                   </Button>
-                  {deleteStep !== "idle" ? (
-                    <div className="rounded-[var(--radius-lg)] bg-foreground/4 p-3">
-                      <p className="text-sm text-muted">
-                        This removes your sign-in, points, titles, and personal pins. Public reviews
-                        stay as “Deleted user.”
-                      </p>
-                      <div className="mt-3 flex gap-2">
-                        <Button
-                          variant="outline"
-                          className="flex-1"
-                          disabled={deleteStep === "working"}
-                          onClick={() => setDeleteStep("idle")}
-                        >
-                          Keep account
-                        </Button>
-                        <Button
-                          className="flex-1"
-                          disabled={deleteStep === "working"}
-                          onClick={() => {
-                            setDeleteStep("working");
-                            void deleteMyAccount({ data: {} })
-                              .catch(() => undefined)
-                              .then(() => {
-                                clearKeptUser();
-                                return endSessionNow("/");
-                              })
-                              .catch(() => {
-                                clearKeptUser();
-                                window.location.replace("/");
-                              });
-                          }}
-                        >
-                          {deleteStep === "working" ? "Deleting…" : "Delete forever"}
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      className="text-left text-[0.75rem] text-muted underline-offset-4 hover:underline"
-                      onClick={() => setDeleteStep("confirm")}
-                    >
-                      Delete account
-                    </button>
-                  )}
+                  <DeleteMyAccount />
                 </div>
               ) : null}
             </section>

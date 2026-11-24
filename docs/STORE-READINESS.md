@@ -12,10 +12,11 @@ The age checkbox is a self-declaration stored on the device; it is not verificat
 ## "Made with Grok" pill
 `npm run build:store` sets `FF_STORE_BUILD=1` and `VITE_GROK_EXTENSIONS=0`. The pill is injected by the server at request time, so the deployed server behind the store apps must also run with `FF_STORE_BUILD=1`. The Grok Build preview is unchanged.
 
-## Capacitor / native release gaps
-- **Server URL**: the native apps load the live site. Run `CAPACITOR_SERVER_URL=https://<live-domain> npx cap sync` before every store build, or the app shows the placeholder page in `native/www`.
-- **Android signing**: `android/app/build.gradle` has no release `signingConfig`. Create an upload keystore (keep it out of git; `*.jks`/`*.keystore` are ignored) and use Play App Signing. Build an **AAB** (`./gradlew bundleRelease`).
-- **Android versions**: `versionCode 1` / `versionName "1.0"` — bump `versionCode` on every upload. targetSdk 36, minSdk 24: OK for Play.
+## Play Store Android app
+Google Play uses the Trusted Web Activity in `android-twa/` (see `docs/play-store.md`). The production URL is the single file `native/production-url.json`. The Capacitor project under `android/` remains the iOS shell; its WebView is the wrong Play artifact because Google sign-in rejects embedded WebViews.
+
+- **Android signing**: create an upload keystore outside the repo. `android-twa/keystore.properties` is gitignored. Play App Signing holds the app signing key. Build an **AAB** with `./gradlew bundleRelease`.
+- **Android versions**: `versionCode` / `versionName` are in `native/production-url.json`. Bump `versionCode` on every upload. targetSdk 36, minSdk 24.
 - **Android**: `minifyEnabled false` (fine), cleartext off, backups off, location permissions declared.
 - **iOS**: no `DEVELOPMENT_TEAM` set — choose your team in Xcode. Add capabilities: Sign in with Apple. `MARKETING_VERSION 1.0`, build `1` — bump the build for each TestFlight upload. Deployment target iOS 15. Location usage strings and `PrivacyInfo.xcprivacy` present.
 - **iOS review risk (guideline 4.2)**: an app that only wraps a website can be rejected for minimum functionality. Native location, offline-friendly behavior and a polished app shell help; be ready to explain native value.

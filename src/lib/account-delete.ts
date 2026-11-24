@@ -17,14 +17,23 @@ export const deleteMyAccount = createServerFn({ method: "POST" })
     const { getSql } = await import("@/lib/db");
     const sql = await getSql();
     const uid = context.userId;
+    const users = await sql.query<{ email: string | null }>(`select "email" from "user" where "id" = $1`, [uid]);
+    const email = users[0]?.email?.trim() || null;
 
     await runQuiet(() =>
       sql.query(
-        `update reviews set reviewer_name = 'Deleted user', reviewer_title = null, user_id = null where user_id = $1`,
+        `update reviews set reviewer_name = 'Deleted user', reviewer_title = null, user_id = null, moderated_by = case when moderated_by = $1 then null else moderated_by end where user_id = $1 or moderated_by = $1`,
         [uid],
       ),
     );
     await runQuiet(() => sql.query(`delete from bathrooms where created_by = $1 and source = 'user'`, [uid]));
+    await runQuiet(() => sql.query(`delete from review_reports where reporter_id = $1`, [uid]));
+    await runQuiet(() => sql.query(`delete from app_feedback where user_id = $1`, [uid]));
+    if (email) {
+      await runQuiet(() => sql.query(`update app_feedback set email = null where lower(email) = lower($1)`, [email]));
+      await runQuiet(() => sql.query(`delete from "verification" where lower("identifier") = lower($1)`, [email]));
+    }
+    await runQuiet(() => sql.query(`update removed_venues set removed_by = 'deleted' where removed_by = $1`, [uid]));
     await runQuiet(() => sql.query(`delete from user_badges where user_id = $1`, [uid]));
     await runQuiet(() => sql.query(`delete from points_ledger where user_id = $1`, [uid]));
     await runQuiet(() => sql.query(`delete from add_holds where user_id = $1`, [uid]));

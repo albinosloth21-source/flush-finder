@@ -27,6 +27,14 @@ export function isSaleAndAdsAllowed(choices: PrivacyChoices): boolean {
   return choices.allowSaleAndAds === true;
 }
 
+/**
+ * The sale switch can turn on only after a 16+ self-attestation.
+ * Turning it off never needs that check. A missing attestation stays off.
+ */
+export function resolveSaleOptIn(requestedOn: boolean, ageAtLeastMin: boolean): boolean {
+  return requestedOn === true && ageAtLeastMin === true;
+}
+
 export function mergePrivacyChoices(local: PrivacyChoices, remote?: PrivacyChoices | null): PrivacyChoices {
   if (local.allowSaleAndAds === false || remote?.allowSaleAndAds === false) {
     return { allowSaleAndAds: false };

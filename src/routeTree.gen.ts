@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as ConfirmEmailRouteImport } from './routes/confirm-email'
+import { Route as DeleteAccountRouteImport } from './routes/delete-account'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -29,6 +30,11 @@ const AccountRoute = AccountRouteImport.update({
 const ConfirmEmailRoute = ConfirmEmailRouteImport.update({
   id: '/confirm-email',
   path: '/confirm-email',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DeleteAccountRoute = DeleteAccountRouteImport.update({
+  id: '/delete-account',
+  path: '/delete-account',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -51,6 +57,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
   '/confirm-email': typeof ConfirmEmailRoute
+  '/delete-account': typeof DeleteAccountRoute
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -59,6 +66,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
   '/confirm-email': typeof ConfirmEmailRoute
+  '/delete-account': typeof DeleteAccountRoute
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -68,6 +76,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
   '/confirm-email': typeof ConfirmEmailRoute
+  '/delete-account': typeof DeleteAccountRoute
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -75,15 +84,28 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/account' | '/confirm-email' | '/login' | '/privacy' | '/api/auth/$'
+    | '/'
+    | '/account'
+    | '/confirm-email'
+    | '/delete-account'
+    | '/login'
+    | '/privacy'
+    | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
   to:
-    '/' | '/account' | '/confirm-email' | '/login' | '/privacy' | '/api/auth/$'
+    | '/'
+    | '/account'
+    | '/confirm-email'
+    | '/delete-account'
+    | '/login'
+    | '/privacy'
+    | '/api/auth/$'
   id:
     | '__root__'
     | '/'
     | '/account'
     | '/confirm-email'
+    | '/delete-account'
     | '/login'
     | '/privacy'
     | '/api/auth/$'
@@ -93,6 +115,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccountRoute: typeof AccountRoute
   ConfirmEmailRoute: typeof ConfirmEmailRoute
+  DeleteAccountRoute: typeof DeleteAccountRoute
   LoginRoute: typeof LoginRoute
   PrivacyRoute: typeof PrivacyRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -119,6 +142,13 @@ declare module '@tanstack/react-router' {
       path: '/confirm-email'
       fullPath: '/confirm-email'
       preLoaderRoute: typeof ConfirmEmailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/delete-account': {
+      id: '/delete-account'
+      path: '/delete-account'
+      fullPath: '/delete-account'
+      preLoaderRoute: typeof DeleteAccountRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -149,6 +179,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccountRoute: AccountRoute,
   ConfirmEmailRoute: ConfirmEmailRoute,
+  DeleteAccountRoute: DeleteAccountRoute,
   LoginRoute: LoginRoute,
   PrivacyRoute: PrivacyRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
