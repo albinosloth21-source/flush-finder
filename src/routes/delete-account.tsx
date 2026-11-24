@@ -36,11 +36,13 @@ function DeleteAccountPage() {
             <DeleteMyAccount heading="Do it here" />
           </div>
           <p className="mt-4 text-[0.75rem] text-subtle">
-            The privacy policy is on{" "}
             <Link to="/privacy" className="underline-offset-4 hover:underline">
-              /privacy
+              Privacy
             </Link>
-            .
+            <span aria-hidden="true"> · </span>
+            <Link to="/terms" className="underline-offset-4 hover:underline">
+              Terms
+            </Link>
           </p>
         </article>
       </div>

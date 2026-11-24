@@ -301,12 +301,15 @@ function Login() {
         >
           Continue as guest
         </Link>
-        <Link
-          to="/privacy"
-          className="mt-3 text-center text-[0.75rem] text-subtle underline-offset-4 hover:underline"
-        >
-          Privacy policy · Do not sell or share
-        </Link>
+        <p className="mt-3 text-center text-[0.75rem] text-subtle">
+          <Link to="/privacy" className="underline-offset-4 hover:underline">
+            Privacy
+          </Link>
+          <span aria-hidden="true"> · </span>
+          <Link to="/terms" className="underline-offset-4 hover:underline">
+            Terms
+          </Link>
+        </p>
         <p className="mt-2 text-center text-[0.75rem] text-subtle">
           Guests can find restrooms and read verified reviews. They cannot post.
         </p>

@@ -32,6 +32,10 @@ function Privacy() {
           <Link to="/" className="underline-offset-4 hover:underline">
             Back to the map
           </Link>
+          <span aria-hidden="true"> · </span>
+          <Link to="/terms" className="underline-offset-4 hover:underline">
+            Terms
+          </Link>
         </p>
       </div>
     </main>
