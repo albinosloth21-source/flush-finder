@@ -2,7 +2,7 @@
 
 Publisher: personal Play Console account **MisfitSoftware**.
 Android package: `com.flushfinder.app`.
-The phone app is a Trusted Web Activity. It opens one website. That website is the only production URL, in [`native/production-url.json`](../native/production-url.json). It is still the placeholder `https://REPLACE_ME.example`. A release build will not sign until you change it.
+The phone app is a Trusted Web Activity. It opens one website. That website is the only production URL, in [`native/production-url.json`](../native/production-url.json): `https://flush-finder-hhbb.onrender.com`. A release build still refuses to sign if that host is changed back to a placeholder, or if `keystore.properties` is missing.
 
 ## Why a Trusted Web Activity, not the Capacitor shell
 
@@ -12,10 +12,10 @@ The project in `android-twa/` uses Google's `android-browser-helper` (the librar
 
 ## What you still do by hand
 
-1. Deploy the site to Render with Neon. Set `productionUrl` and `host` in `native/production-url.json` to that origin (https, no path). Run `npm run twa:sync`.
+1. The site is live at `https://flush-finder-hhbb.onrender.com`. `productionUrl` and `host` in `native/production-url.json` already point there. Run `npm run twa:sync` again only if the host changes.
 2. Create the upload keystore (below). Keep it outside the repo.
 3. Build the signed AAB and upload it to Play Console.
-4. Copy the **Play App Signing** SHA-256 into `sha256CertFingerprints`, run `npm run twa:sync` again, and redeploy so `https://YOUR-HOST/.well-known/assetlinks.json` matches. Until that file is live, the app still opens but Chrome shows the address bar.
+4. Copy the **Play App Signing** SHA-256 into `sha256CertFingerprints`, run `npm run twa:sync` again, and redeploy so `https://flush-finder-hhbb.onrender.com/.well-known/assetlinks.json` matches. Until that file is live, the app still opens but Chrome shows the address bar.
 5. Replace `PRIVACY_CONTACT_EMAIL` in `src/lib/constants.ts` (marked TODO) and redeploy. Put the live `/privacy` and `/delete-account` URLs in Play Console.
 6. Finish the store listing, Data safety, content rating, and a closed test with 12 testers for 14 days.
 7. Confirm OAuth redirect URLs for the Render origin (see `docs/SIGN-IN-SETUP.md` and `docs/APPLE-SIGN-IN.md`). Do not copy `GROK_AUTH_*` secrets to Render.
@@ -85,7 +85,7 @@ Upload `android-twa/app/build/outputs/bundle/release/app-release.aab`.
 
 Bump `versionCode` in `native/production-url.json` on every upload. Play rejects a repeated code. `versionName` is the human version (`1.0.0`).
 
-`bundleRelease` fails while the host is still `REPLACE_ME.example`, and it fails without `keystore.properties`.
+`bundleRelease` fails if the host is put back to a placeholder such as `REPLACE_ME.example`, and it fails without `keystore.properties`. The current host is `flush-finder-hhbb.onrender.com`.
 
 16 KB memory pages: this project has no native `.so` of its own. Play's 16 KB requirement for updates is currently February 1, 2027. If Console warns, update Android Gradle Plugin and the browser-helper dependencies and rebuild.
 
@@ -93,12 +93,12 @@ Bump `versionCode` in `native/production-url.json` on every upload. Play rejects
 
 `npm run twa:sync` writes `public/.well-known/assetlinks.json` from the production URL file. The live site must return that file at:
 
-`https://YOUR-HOST/.well-known/assetlinks.json`
+`https://flush-finder-hhbb.onrender.com/.well-known/assetlinks.json`
 
 Requirements: HTTP 200, `Content-Type: application/json`, no redirect to a login page. Check with:
 
 ```bash
-curl -sI "https://YOUR-HOST/.well-known/assetlinks.json"
+curl -sI "https://flush-finder-hhbb.onrender.com/.well-known/assetlinks.json"
 ```
 
 The statement uses relation `delegate_permission/common.handle_all_urls` and package `com.flushfinder.app`. The fingerprint placeholder starts with `TODO`. Replace it before you expect the URL bar to disappear. Confirm with Google's [asset links tester](https://developers.google.com/digital-asset-links/tools/generator).
@@ -141,7 +141,7 @@ Answer the form this way. If you later connect an ad network, stop and change bo
 
 **Is all user data encrypted in transit?** Yes (HTTPS).
 
-**Do you provide a way for users to request data deletion?** Yes. In the app (Account → Titles → Delete my account) and at `https://YOUR-HOST/delete-account`.
+**Do you provide a way for users to request data deletion?** Yes. In the app (Account → Titles → Delete my account) and at `https://flush-finder-hhbb.onrender.com/delete-account`.
 
 **Ads.** No. There is no ad SDK. Do not declare an advertising ID. The privacy switch records a preference only.
 
@@ -215,7 +215,7 @@ No TV banner. No promo video required.
 
 A personal Play Console account has to run a closed test before production. Plan on **at least 12 testers opted in for 14 continuous days**. Google has required that since late 2023 for personal accounts, and Console still gates production access on it. Confirm the exact banner in your Console in case the number has moved.
 
-1. Finish the store listing, privacy URL (`https://YOUR-HOST/privacy`), ads (no), content rating, target audience, and Data safety. App access: guest mode works; also provide a test login if review asks.
+1. Finish the store listing, privacy URL (`https://flush-finder-hhbb.onrender.com/privacy`), ads (no), content rating, target audience, and Data safety. App access: guest mode works; also provide a test login if review asks.
 2. Create a closed testing release and upload the AAB.
 3. Create an email list of at least 12 testers. They must open the opt-in link and install from Play. You, alone, do not count as 12.
 4. Leave the test running 14 days with those testers still opted in. Removing people resets the clock.

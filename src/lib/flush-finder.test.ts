@@ -1778,6 +1778,7 @@ import { MIN_AGE } from "./constants.ts";
 import { grokExtensionsEnabledFor } from "../../scripts/grok-pwa-shared.mjs";
 import { assetLinksDocument, loadProductionConfig } from "../../scripts/sync-twa-config.mjs";
 import { resolveSaleOptIn } from "./privacy-choices.ts";
+import { iosAuthLocation, parseNativeAuthCallback, IOS_SESSION_COOKIE } from "./ios-auth.ts";
 
 describe("store readiness", () => {
   it("Sign in with Apple stays off until configured", () => {
@@ -1859,5 +1860,28 @@ describe("store readiness", () => {
       assert.match(text, /16/);
       assert.doesNotMatch(text, /\b13\+/);
     }
+  });
+
+  it("iOS sign-in leaves the WebView and keeps the session cookie name", () => {
+    assert.equal(iosAuthLocation(null, true), "flushfinder://auth?error=1");
+    assert.equal(iosAuthLocation("", false), "flushfinder://auth?error=missing");
+    const cookie = `${IOS_SESSION_COOKIE}=${encodeURIComponent("session.token")}`;
+    assert.equal(iosAuthLocation(cookie, false), "flushfinder://auth?token=session.token");
+    assert.equal(parseNativeAuthCallback("flushfinder://auth?token=session.token").token, "session.token");
+    assert.equal(parseNativeAuthCallback("flushfinder://auth?error=1").error, "1");
+    assert.equal(parseNativeAuthCallback("https://example.com/auth").error, "bad-scheme");
+    const client = readFileSync(new URL("./auth/client.ts", import.meta.url), "utf8");
+    assert.match(client, /isFlushFinderIOSApp\(\)/);
+    assert.match(client, /iosSignInWithApple/);
+    assert.match(client, /IOS_AUTH_DONE_PATH/);
+    assert.match(readFileSync(new URL("./auth/server.ts", import.meta.url), "utf8"), new RegExp(IOS_SESSION_COOKIE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    const signing = readFileSync(new URL("../../ios/Signing.xcconfig", import.meta.url), "utf8");
+    assert.match(signing, /DEVELOPMENT_TEAM = TODOTEAMID/);
+    assert.match(signing, /PRODUCT_BUNDLE_IDENTIFIER = com\.flushfinder\.app/);
+    assert.match(readFileSync(new URL("../components/delete-my-account.tsx", import.meta.url), "utf8"), /Delete my account/);
+    const guide = readFileSync(new URL("../../docs/app-store.md", import.meta.url), "utf8");
+    assert.match(guide, /4\.2/);
+    assert.match(guide, /TestFlight/);
+    assert.match(guide, /App Tracking Transparency/);
   });
 });

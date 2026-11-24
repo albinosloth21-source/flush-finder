@@ -1,6 +1,6 @@
 {
-  "productionUrl": "https://REPLACE_ME.example",
-  "host": "REPLACE_ME.example",
+  "productionUrl": "https://flush-finder-hhbb.onrender.com",
+  "host": "flush-finder-hhbb.onrender.com",
   "packageId": "com.flushfinder.app",
   "appName": "Flush Finder",
   "versionName": "1.0.0",

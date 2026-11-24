@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Navigation } from "lucide-react";
-import { NAV_APPS, defaultNavApp, openNav, type NavApp } from "@/lib/directions";
+import { NAV_APPS, defaultNavApp, openNav, sharePlace, type NavApp } from "@/lib/directions";
 import { cn } from "@/lib/utils";
 
 /** Gold "Take me there" button with a small Apple / Google / Waze chooser. Works without location. */
@@ -52,6 +52,13 @@ export function TakeMeThere({
             {item.label.replace(" Maps", "")}
           </button>
         ))}
+        <button
+          type="button"
+          className="ml-auto text-[0.75rem] font-medium text-foreground underline-offset-4 hover:underline"
+          onClick={() => void sharePlace(dest)}
+        >
+          Share
+        </button>
       </div>
     </div>
   );

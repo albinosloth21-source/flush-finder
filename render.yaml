@@ -5,7 +5,7 @@ services:
     name: flush-finder
     runtime: node
     plan: starter
-    buildCommand: NITRO_PRESET=node-server FF_STORE_BUILD=1 npm run build:store
+    buildCommand: npm install --include=dev && NITRO_PRESET=node-server FF_STORE_BUILD=1 npm run build:store
     startCommand: node .output/server/index.mjs
     envVars:
       - key: NODE_VERSION

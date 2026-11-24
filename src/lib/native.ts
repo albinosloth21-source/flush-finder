@@ -1,3 +1,4 @@
+import { iosDeviceLocation, isFlushFinderIOSApp } from "./ios-shell.ts";
 import {
   classifyGeolocationError,
   detectInAppBrowser,
@@ -149,6 +150,15 @@ async function browserPosition(): Promise<{ lat: number; lng: number }> {
 }
 
 export async function getDeviceLocation(): Promise<{ lat: number; lng: number }> {
+  if (isFlushFinderIOSApp()) {
+    try {
+      return await iosDeviceLocation();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Your location isn't available right now.";
+      const denied = /denied|off|permission/i.test(message);
+      throw new LocationError(denied ? "denied" : "unavailable", message, err);
+    }
+  }
   if (isNativeApp()) {
     const { Geolocation } = await import("@capacitor/geolocation");
     let granted = false;

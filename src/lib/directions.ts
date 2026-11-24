@@ -1,3 +1,5 @@
+import { iosHaptic, iosOpenDirections, iosSharePlace, isFlushFinderIOSApp } from "./ios-shell.ts";
+
 /** Turn-by-turn handoff to the user's maps app. No location needed: the app picks the start. */
 export type NavApp = "google" | "apple" | "waze";
 
@@ -46,7 +48,32 @@ export function rememberNavApp(app: NavApp) {
   }
 }
 
-export function openNav(app: NavApp, dest: { lat: number; lng: number }) {
+export function openNav(app: NavApp, dest: { lat: number; lng: number; name?: string }) {
   rememberNavApp(app);
+  iosHaptic("light");
+  if (isFlushFinderIOSApp()) {
+    iosOpenDirections({ ...dest, app });
+    return;
+  }
   window.open(navUrl(app, dest), "_blank", "noopener,noreferrer");
+}
+
+export async function sharePlace(dest: { lat: number; lng: number; name?: string }) {
+  const title = dest.name?.trim() || "A throne on Flush Finder";
+  const url = navUrl("apple", dest);
+  iosHaptic("light");
+  if (isFlushFinderIOSApp()) {
+    await iosSharePlace({ title, text: `${title} — Flush Finder`, url });
+    return;
+  }
+  const nav = typeof navigator === "undefined" ? undefined : navigator;
+  try {
+    if (nav?.share) {
+      await nav.share({ title, text: title, url });
+      return;
+    }
+    await nav?.clipboard?.writeText(`${title} ${url}`);
+  } catch {
+    /* the person dismissed the sheet */
+  }
 }

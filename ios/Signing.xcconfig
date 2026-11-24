@@ -1,0 +1,12 @@
+// TODO: replace TODOTEAMID with the 10-character Team ID from the co-helper's
+// Apple Developer account (developer.apple.com → Membership). Xcode's Signing
+// & Capabilities picker can set it too. Do not commit a certificate or profile.
+DEVELOPMENT_TEAM = TODOTEAMID
+
+// TODO: change the bundle ID if com.flushfinder.app is already taken on that team.
+// It must match the App ID that has Sign in with Apple turned on.
+PRODUCT_BUNDLE_IDENTIFIER = com.flushfinder.app
+
+// Keep these in step with versionName / versionCode in native/production-url.json.
+MARKETING_VERSION = 1.0.0
+CURRENT_PROJECT_VERSION = 1
