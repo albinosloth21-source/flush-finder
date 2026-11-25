@@ -1316,6 +1316,15 @@ describe("iPhone and Android native wraps", () => {
 
     const android = readFileSync(new URL("../../android/app/src/main/AndroidManifest.xml", import.meta.url), "utf8");
     assert.match(android, /ACCESS_FINE_LOCATION/);
+    const twaManifest = readFileSync(new URL("../../android-twa/app/src/main/AndroidManifest.xml", import.meta.url), "utf8");
+    assert.match(twaManifest, /LocationAwareLauncherActivity/);
+    assert.match(twaManifest, /DelegationService/);
+    assert.match(twaManifest, /ACCESS_FINE_LOCATION/);
+    assert.match(twaManifest, /ACCESS_COARSE_LOCATION/);
+    assert.match(
+      readFileSync(new URL("../../android-twa/app/src/main/java/com/flushfinder/app/LocationAwareLauncherActivity.java", import.meta.url), "utf8"),
+      /shouldLaunchImmediately/,
+    );
     const androidStrings = readFileSync(new URL("../../android/app/src/main/res/values/strings.xml", import.meta.url), "utf8");
     assert.match(androidStrings, /com\.flushfinder\.app/);
 
@@ -1650,6 +1659,7 @@ describe("Stay signed in, personal restrooms, and seamless running", () => {
 import {
   classifyGeolocationError,
   detectInAppBrowser,
+  isAndroidAppReferrer,
   LocationError,
   locationHelp,
   parseManualSpot,
@@ -1716,6 +1726,12 @@ describe("location failures", () => {
     assert.match(locationHelp("timeout", { ...web, inAppBrowser: "X", apple: true }).message, /X.*Safari/);
     assert.ok(locationHelp("timeout", { ...web, inAppBrowser: "X" }).actions.includes("retry"));
     assert.match(locationHelp("timeout", { ...web, apple: true }).message, /Safari Websites/);
+
+    assert.match(locationHelp("timeout", { ...web, twa: true }).message, /Flush Finder/);
+    assert.match(locationHelp("denied", { ...web, twa: true }).message, /Flush Finder/);
+    assert.match(locationHelp("unavailable", { ...web, twa: true }).message, /Flush Finder/);
+    assert.equal(isAndroidAppReferrer("android-app://com.flushfinder.app"), true);
+    assert.equal(isAndroidAppReferrer("https://flush-finder-hhbb.onrender.com"), false);
     assert.ok(!locationHelp("insecure", web).actions.includes("retry"));
   });
 

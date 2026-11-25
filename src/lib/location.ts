@@ -93,10 +93,15 @@ export type LocationHelp = {
   actions: LocationAction[];
 };
 
+/** True when document.referrer is an android-app:// TWA (or similar) link. */
+export function isAndroidAppReferrer(referrer: string): boolean {
+  return /^android-app:\/\//i.test(referrer || "");
+}
+
 /** Copy and fallback buttons for each failure. */
 export function locationHelp(
   code: LocationErrorCode,
-  env: { native: boolean; inAppBrowser: string | null; apple: boolean },
+  env: { native: boolean; inAppBrowser: string | null; apple: boolean; twa?: boolean },
 ): LocationHelp {
   const fallbacks: LocationAction[] = ["tap-map", "search"];
   const browser = env.apple ? "Safari" : "Chrome";
@@ -125,7 +130,14 @@ export function locationHelp(
               : "Turn it on in Settings → Apps → Flush Finder → Permissions → Location, then try again.",
             actions: ["retry", ...fallbacks],
           }
-        : {
+        : env.twa
+          ? {
+              title: "Location is off for Flush Finder",
+              message:
+                "The installed app uses Flush Finder's location permission, not Chrome's. Turn it on in Settings → Apps → Flush Finder → Permissions → Location, then try again.",
+              actions: ["retry", ...fallbacks],
+            }
+          : {
             title: "Location permission is off",
             message: env.apple
               ? "In Safari, tap “aA” (or the lock) in the address bar → Website Settings → Location → Allow, then try again."
@@ -137,7 +149,9 @@ export function locationHelp(
         title: "Couldn't find you in time",
         message: env.native
           ? "Your GPS didn't answer quickly. Try again near a window, or set your spot by hand."
-          : env.apple
+          : env.twa
+            ? "The installed app uses Flush Finder's location permission, not Chrome's. Check Settings → Apps → Flush Finder → Permissions → Location is allowed, try near a window, or set your spot by hand."
+            : env.apple
             ? "Your phone didn't share a location. Check Settings → Privacy & Security → Location Services is on, and that Safari Websites is set to “While Using the App”. Then try again, or set your spot by hand."
             : "Your phone didn't share a location. Check that Location is on for your device and for Chrome (Settings → Apps → Chrome → Permissions), then try again, or set your spot by hand.",
         actions: ["retry", ...fallbacks],
@@ -157,7 +171,9 @@ export function locationHelp(
     default:
       return {
         title: "Your location isn't available",
-        message: "Location services may be off on this device. Try again, or set your spot by hand.",
+        message: env.twa
+          ? "The installed app uses Flush Finder's location permission, not Chrome's. Check Settings → Apps → Flush Finder → Permissions → Location, turn Location on for this device, then try again, or set your spot by hand."
+          : "Location services may be off on this device. Try again, or set your spot by hand.",
         actions: ["retry", ...fallbacks],
       };
   }

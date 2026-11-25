@@ -2,6 +2,7 @@ import { iosDeviceLocation, isFlushFinderIOSApp } from "./ios-shell.ts";
 import {
   classifyGeolocationError,
   detectInAppBrowser,
+  isAndroidAppReferrer,
   isAppleDevice,
   isLocationError,
   LocationError,
@@ -211,7 +212,13 @@ export function writeManualSpot(lat: number, lng: number) {
 export function locationHelpFor(err: unknown): LocationHelp {
   const code = isLocationError(err) ? err.code : "unavailable";
   const ua = typeof navigator === "undefined" ? "" : navigator.userAgent;
-  return locationHelp(code, { native: isNativeApp(), inAppBrowser: detectInAppBrowser(ua), apple: isAppleDevice(ua) });
+  const referrer = typeof document === "undefined" ? "" : document.referrer;
+  return locationHelp(code, {
+    native: isNativeApp(),
+    inAppBrowser: detectInAppBrowser(ua),
+    apple: isAppleDevice(ua),
+    twa: isAndroidAppReferrer(referrer),
+  });
 }
 
 export async function prepareNativeShell() {
