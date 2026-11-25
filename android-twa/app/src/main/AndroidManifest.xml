@@ -24,7 +24,7 @@
             android:resource="@string/assetStatements" />
 
         <activity
-            android:name="com.google.androidbrowserhelper.trusted.LauncherActivity"
+            android:name="com.flushfinder.app.LocationAwareLauncherActivity"
             android:exported="true"
             android:launchMode="singleTask"
             android:theme="@style/Theme.FlushFinder">
