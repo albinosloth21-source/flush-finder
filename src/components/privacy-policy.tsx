@@ -109,7 +109,7 @@ export function PrivacyPolicyText() {
           <li>Email one-time codes: until they are used or they expire.</li>
           <li>Reviews you wrote: the text stays, without your name or account, after deletion.</li>
           <li>Feedback you sent while signed in: deleted with the account. A guest note is kept for moderation with no account attached. If that note included your email, deleting the account clears that email.</li>
-          <li>We do not run our own analytics product. The host (planned: Render) and the database (planned: Neon) process the data required to run the app. Email codes are sent through the mail provider configured on the server (Resend), when that is turned on.</li>
+          <li>We do not run our own analytics product. Render hosts the app and Neon hosts the database. They process the data required to run the app. Email codes are sent through the mail provider configured on the server (Resend), when that is turned on.</li>
         </ul>
       </section>
 

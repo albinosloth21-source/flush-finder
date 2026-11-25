@@ -1838,7 +1838,12 @@ describe("store readiness", () => {
     assert.match(policy, /Apple/);
     assert.match(policy, /one-time codes/);
     assert.match(policy, /PRIVACY_CONTACT_EMAIL/);
+    assert.match(policy, /Render hosts the app and Neon hosts the database/);
+    assert.doesNotMatch(policy, /planned:/);
     assert.match(policy, /\/delete-account/);
+    const terms = readFileSync(new URL("../components/terms-of-service.tsx", import.meta.url), "utf8");
+    assert.match(terms, /\{MIN_AGE\}/);
+    assert.doesNotMatch(terms, /\b13\b/);
     const deletion = readFileSync(new URL("./account-delete.ts", import.meta.url), "utf8");
     assert.match(deletion, /review_reports/);
     assert.match(deletion, /app_feedback/);
