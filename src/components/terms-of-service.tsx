@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { APP_NAME, OPERATOR_NAME, PRIVACY_CONTACT_EMAIL } from "@/lib/constants";
+import { APP_NAME, MIN_AGE, OPERATOR_NAME, PRIVACY_CONTACT_EMAIL } from "@/lib/constants";
 
 export const TERMS_UPDATED = "November 24, 2026";
 
@@ -29,8 +29,8 @@ export function TermsOfServiceText() {
       <section>
         <h2 className="font-display text-lg font-semibold">Who can use it</h2>
         <p className="mt-2 text-muted">
-          You must be at least 13 years old. {APP_NAME} is not directed at children under 13. If we
-          learn an account belongs to someone under 13, we will delete it.
+          You must be at least {MIN_AGE} years old. {APP_NAME} is not directed at children under {MIN_AGE}.
+          If we learn an account belongs to someone under {MIN_AGE}, we will delete it.
         </p>
       </section>
 
